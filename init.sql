@@ -1,0 +1,6 @@
+CREATE DATABASE IF NOT EXISTS clinic_identity;
+CREATE DATABASE IF NOT EXISTS clinic_profile;
+CREATE DATABASE IF NOT EXISTS clinic_appointment;
+CREATE DATABASE IF NOT EXISTS clinic_medical_record;
+CREATE DATABASE IF NOT EXISTS clinic_payment;
+CREATE DATABASE IF NOT EXISTS clinic_notification;
