@@ -1,0 +1,55 @@
+﻿BÁO CÁO TỔNG KẾT: HỆ THỐNG ĐẶT LỊCH KHÁM BỆNH (KIẾN TRÚC SOA)
+Tóm lược điều hành (Executive Summary)
+Tài liệu này tổng hợp phân tích và thiết kế cho hệ thống Website Đặt lịch khám bệnh, được xây dựng trên kiến trúc hướng dịch vụ (SOA) và mô hình Microservices. Mục tiêu cốt lõi của hệ thống là tối ưu hóa quy trình kết nối giữa bệnh nhân, bác sĩ và quản trị viên thông qua nền tảng số hóa. Hệ thống được chia thành 6 dịch vụ độc lập (Identity, Profile, Appointment, Medical Record, Payment, Notification), đảm bảo tính linh hoạt, khả năng mở rộng và tái sử dụng cao. Các giải pháp kỹ thuật trọng tâm bao gồm việc áp dụng 5 mẫu thiết kế (Design Patterns) tiêu chuẩn, thiết kế cơ sở dữ liệu riêng biệt (Database per Service) và hệ thống REST API nhất quán để điều phối các luồng nghiệp vụ phức tạp từ đặt lịch, thanh toán trực tuyến đến quản lý hồ sơ bệnh án điện tử.
+1. Phân tích Đối tượng sử dụng (Actors) và Chức năng
+Hệ thống được thiết kế để phục vụ ba nhóm người dùng chính với các quyền hạn và chức năng chuyên biệt:| Đối tượng | Chức năng trọng tâm || ------ | ------ || Bệnh nhân | Tìm kiếm bác sĩ/chuyên khoa linh hoạt; Đặt lịch và chọn khung giờ (slot) thời gian thực; Thanh toán trực tuyến; Quản lý hồ sơ y tế cá nhân và nhận kết quả khám điện tử. || Bác sĩ | Quản lý lịch khám cá nhân theo ngày; Tiếp nhận bệnh nhân (Check-in); Tạo kết quả khám (chẩn đoán, đơn thuốc) và lưu trữ vào hồ sơ bệnh án điện tử. || Quản trị viên (Admin) | Quản lý danh mục chuyên khoa và cấu hình giá dịch vụ; Quản lý hồ sơ và thiết lập lịch làm việc cho đội ngũ bác sĩ; Quản lý tài khoản người dùng và thống kê hệ thống. |
+2. Kiến trúc Hệ thống và Phân loại Dịch vụ (SOA)
+Hệ thống được cấu trúc thành 6 dịch vụ cốt lõi, mỗi dịch vụ đảm nhận một trách nhiệm riêng biệt nhằm giảm thiểu sự phụ thuộc lẫn nhau (Loose Coupling):
+2.1. Danh sách các Dịch vụ
+1. Identity Service (Utility Service):  Xử lý đăng ký, đăng nhập và xác thực qua JWT token. Không lưu trữ hồ sơ chi tiết.
+2. Profile/User Service (Entity Service):  Quản lý thông tin chi tiết bệnh nhân, bác sĩ, chuyên khoa và cấu hình ca làm việc (schedules) để sinh ra các khung giờ khám (slots).
+3. Appointment Service (Entity + Task Service):  Trung tâm điều phối nghiệp vụ. Kiểm tra slot trống, tạo lịch hẹn, quản lý trạng thái lịch khám và kết nối các dịch vụ khác.
+4. Medical Record Service (Entity Service):  Quản lý kết quả khám bệnh, chẩn đoán và đơn thuốc.
+5. Payment Service (Entity Service):  Tích hợp các cổng thanh toán (VNPay, MoMo) để xử lý giao dịch.
+6. Notification Service (Utility Service):  Gửi thông báo xác nhận, nhắc lịch hoặc trả kết quả qua Email/SMS.
+2.2. Nguyên tắc vận hành SOA
+* Khả năng tái sử dụng:  Identity và Notification Service có thể sử dụng cho các hệ thống khác.
+* Tính tự trị:  Mỗi dịch vụ có thể triển khai và mở rộng độc lập. Ví dụ, lỗi tại Payment Service không làm ngưng trệ chức năng tìm kiếm bác sĩ.
+* Hợp đồng chuẩn hóa:  Giao tiếp giữa các dịch vụ và Frontend hoàn toàn thông qua REST API với định dạng dữ liệu JSON.
+3. Thiết kế Cơ sở dữ liệu (Microservices Database)
+Áp dụng mô hình  Database per Service  sử dụng MySQL. Các liên kết giữa các bảng trong các database khác nhau là  liên kết mềm (Soft References)  thông qua ID, không dùng khóa ngoại (Foreign Key) cứng để đảm bảo tính độc lập tuyệt đối.
+* clinic_identity:  Lưu users (email, password_hash, role).
+* clinic_profile:  Lưu specialties, patients, doctors và doctor_schedules.
+* clinic_appointment:  Lưu appointments (lịch hẹn thực tế) và slot_locks (giữ chỗ tạm thời).
+* clinic_medical_record:  Lưu medical_records kèm liên kết đến tệp kết quả trên lưu trữ đám mây.
+* clinic_payment:  Lưu lịch sử giao dịch payments.
+* clinic_notification:  Lưu notification_logs để đối soát.
+4. Áp dụng Mẫu thiết kế (Design Patterns)
+Để tối ưu hóa mã nguồn và xử lý nghiệp vụ phức tạp, hệ thống tích hợp 5 Design Pattern chính:
+1. Builder Pattern:  Áp dụng tại Identity Service để khởi tạo JWT và Appointment Service để xây dựng đối tượng lịch hẹn có nhiều thuộc tính phức tạp.
+2. Factory Method Pattern:  Sử dụng tại Payment Service để khởi tạo linh hoạt các phương thức thanh toán (VNPay, MoMo) dựa trên yêu cầu của người dùng mà không cần thay đổi logic cốt lõi.
+3. Adapter Pattern:  Triển khai tại Medical Record Service để bao bọc (wrap) SDK của bên thứ ba (như MinIO/S3), giúp hệ thống dễ dàng thay đổi nhà cung cấp lưu trữ cloud.
+4. State Pattern:  Quản lý vòng đời lịch khám (PENDING -> CONFIRMED -> COMPLETED/CANCELLED). Mỗi trạng thái được tách thành một lớp riêng để kiểm soát quy tắc chuyển đổi.
+5. Strategy Pattern:  Tính toán chi phí khám bệnh dựa trên nhiều chiến lược khác nhau (có BHYT, khám dịch vụ, khám chuyên gia).
+5. Quy trình Nghiệp vụ trọng tâm (Luồng đặt lịch)
+Hệ thống vận hành theo một quy trình phối hợp chặt chẽ giữa các dịch vụ:
+1. Khởi tạo:  Bệnh nhân chọn bác sĩ và khung giờ. Appointment Service gọi Profile Service để xác minh thông tin và kiểm tra slot trống.
+2. Thanh toán:  Appointment Service gọi Payment Service để lấy link thanh toán. Lịch hẹn tạm thời ở trạng thái PENDING_PAYMENT.
+3. Xác nhận:  Sau khi có callback thành công từ cổng thanh toán, Payment Service báo lại cho Appointment Service để chuyển trạng thái sang CONFIRMED và cập nhật slot thành BOOKED.
+4. Thông báo:  Notification Service tự động gửi email xác nhận kèm mã QR (E-ticket) cho bệnh nhân.
+5. Hoàn tất:  Sau khi bác sĩ nhập kết quả khám tại Medical Record Service, trạng thái lịch hẹn chuyển thành COMPLETED và bệnh nhân nhận được thông báo có kết quả mới.
+6. Thiết kế Kỹ thuật và REST API
+6.1. Nguyên tắc thiết kế API
+* Sử dụng danh từ số nhiều (e.g., /appointments, /doctors).
+* Không dùng động từ trong URL.
+* Sử dụng các phương thức HTTP chuẩn: GET (truy xuất), POST (tạo mới), PUT/PATCH (cập nhật), DELETE (xóa).
+6.2. Cấu trúc Công nghệ (Tech Stack)
+* Frontend:  Next.js (App Router), Tailwind CSS, Axios.
+* Backend:  Spring Boot (v4.0.2), Spring Data JPA.
+* Lưu trữ:  MySQL, MinIO (Object Storage cho file kết quả).
+* Triển khai:  Docker, Docker-compose.
+7. Các lưu ý về Kiểm soát lỗi và Bảo trì
+Phân tích chỉ ra các lỗi thường gặp cần tránh trong kiến trúc SOA:
+* Tránh gộp dịch vụ:  Không để một dịch vụ xử lý quá nhiều trách nhiệm (ví dụ: Booking Service không nên tự xử lý thanh toán và gửi mail).
+* Xác thực tập trung:  Tất cả các yêu cầu từ Client nên đi qua một API Gateway để xác thực JWT một lần trước khi chuyển đến các dịch vụ bên trong.
+* Xử lý luồng thất bại:  Hệ thống phải thiết kế kịch bản cho trường hợp slot bị hết trước khi thanh toán hoặc thanh toán thất bại để nhả lại slot cho người khác.
