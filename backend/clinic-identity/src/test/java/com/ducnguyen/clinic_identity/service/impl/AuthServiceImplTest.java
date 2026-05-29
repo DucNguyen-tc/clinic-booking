@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -22,10 +23,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.ducnguyen.clinic_identity.dto.request.AuthRequest;
 import com.ducnguyen.clinic_identity.dto.request.RegisterRequest;
-import com.ducnguyen.clinic_identity.dto.response.AuthResponse;
+import com.ducnguyen.clinic_identity.dto.response.LoginResult;
+import com.ducnguyen.clinic_identity.entity.Session;
 import com.ducnguyen.clinic_identity.entity.User;
 import com.ducnguyen.clinic_identity.enums.Role;
 import com.ducnguyen.clinic_identity.exception.CustomException;
+import com.ducnguyen.clinic_identity.repository.SessionRepository;
 import com.ducnguyen.clinic_identity.repository.UserRepository;
 import com.ducnguyen.clinic_identity.utils.JwtUtils;
 
@@ -34,6 +37,9 @@ public class AuthServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private SessionRepository sessionRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -90,15 +96,21 @@ public class AuthServiceImplTest {
     }
 
     @Test
-    void login_ShouldReturnToken_WhenCredentialsAreValid() {
+    void login_ShouldReturnLoginResult_WhenCredentialsAreValid() {
         when(userRepository.findByEmail(authRequest.getEmail())).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches(authRequest.getPassword(), testUser.getPasswordHash())).thenReturn(true);
-        when(jwtUtils.generateToken(testUser)).thenReturn("mockedToken");
+        when(jwtUtils.generateToken(testUser)).thenReturn("mockedAccessToken");
+        when(jwtUtils.generateRefreshToken(testUser)).thenReturn("mockedRefreshToken");
+        when(jwtUtils.getRefreshExpirationMs()).thenReturn(2592000000L);
 
-        AuthResponse response = authService.login(authRequest);
+        LoginResult result = authService.login(authRequest);
 
-        assertNotNull(response);
-        assertEquals("mockedToken", response.getToken());
+        assertNotNull(result);
+        assertEquals("mockedAccessToken", result.getAccessToken());
+        assertEquals("mockedRefreshToken", result.getRefreshToken());
+
+        verify(sessionRepository).deleteByUserId(testUser.getId());
+        verify(sessionRepository).save(any(Session.class));
     }
 
     @Test
@@ -139,5 +151,62 @@ public class AuthServiceImplTest {
         boolean isValid = authService.validateToken(token);
 
         assertTrue(isValid);
+    }
+
+    @Test
+    void logout_ShouldDeleteSession_WhenSessionExists() {
+        String token = "validRefreshToken";
+        when(sessionRepository.existsByRefreshToken(token)).thenReturn(true);
+
+        authService.logout(token);
+
+        verify(sessionRepository).deleteByRefreshToken(token);
+    }
+
+    @Test
+    void logout_ShouldThrowException_WhenSessionDoesNotExist() {
+        String token = "invalidRefreshToken";
+        when(sessionRepository.existsByRefreshToken(token)).thenReturn(false);
+
+        CustomException exception = assertThrows(CustomException.class, () -> authService.logout(token));
+
+        assertEquals(HttpStatus.NOT_FOUND.value(), exception.getStatus());
+    }
+
+    @Test
+    void refreshToken_ShouldReturnNewAccessToken_WhenTokenIsValid() {
+        String token = "validRefreshToken";
+        Session session = Session.builder()
+                .userId("user123")
+                .refreshToken(token)
+                .expiresAt(LocalDateTime.now().plusHours(1))
+                .build();
+
+        when(jwtUtils.validateToken(token)).thenReturn(true);
+        when(sessionRepository.findByRefreshToken(token)).thenReturn(Optional.of(session));
+        when(jwtUtils.getEmailFromToken(token)).thenReturn("test@example.com");
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
+        when(jwtUtils.generateToken(testUser)).thenReturn("newAccessToken");
+
+        String newAccessToken = authService.refreshToken(token);
+
+        assertEquals("newAccessToken", newAccessToken);
+    }
+
+    @Test
+    void refreshToken_ShouldThrowException_WhenTokenIsExpiredInDb() {
+        String token = "expiredRefreshToken";
+        Session session = Session.builder()
+                .userId("user123")
+                .refreshToken(token)
+                .expiresAt(LocalDateTime.now().minusHours(1))
+                .build();
+
+        when(jwtUtils.validateToken(token)).thenReturn(true);
+        when(sessionRepository.findByRefreshToken(token)).thenReturn(Optional.of(session));
+
+        CustomException exception = assertThrows(CustomException.class, () -> authService.refreshToken(token));
+
+        assertEquals(HttpStatus.UNAUTHORIZED.value(), exception.getStatus());
     }
 }

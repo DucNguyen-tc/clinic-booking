@@ -23,6 +23,9 @@ public class JwtUtils {
     @Value("${jwt.expirationMs}")
     private int jwtExpirationMs;
 
+    @Value("${jwt.refreshExpirationMs}")
+    private long jwtRefreshExpirationMs;
+
     private SecretKey getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
         return Keys.hmacShaKeyFor(keyBytes);
@@ -41,6 +44,24 @@ public class JwtUtils {
                 .expiration(expiryDate)
                 .signWith(getSigningKey())
                 .compact();
+    }
+
+    public String generateRefreshToken(User user) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtRefreshExpirationMs);
+
+        // Applying Builder Pattern to build JWT refresh token as required by SOA
+        return Jwts.builder()
+                .subject(user.getEmail())
+                .claim("id", user.getId())
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    public long getRefreshExpirationMs() {
+        return jwtRefreshExpirationMs;
     }
 
     public String getEmailFromToken(String token) {

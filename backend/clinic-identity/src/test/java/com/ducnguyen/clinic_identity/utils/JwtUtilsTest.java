@@ -26,6 +26,7 @@ public class JwtUtilsTest {
         jwtUtils = new JwtUtils();
         ReflectionTestUtils.setField(jwtUtils, "jwtSecret", SECRET);
         ReflectionTestUtils.setField(jwtUtils, "jwtExpirationMs", 3600000); // 1 hour
+        ReflectionTestUtils.setField(jwtUtils, "jwtRefreshExpirationMs", 2592000000L); // 30 days
 
         testUser = User.builder()
                 .id("123")
@@ -40,6 +41,15 @@ public class JwtUtilsTest {
 
         assertNotNull(token);
         assertFalse(token.isEmpty());
+    }
+
+    @Test
+    void generateRefreshToken_ShouldReturnValidToken() {
+        String token = jwtUtils.generateRefreshToken(testUser);
+
+        assertNotNull(token);
+        assertFalse(token.isEmpty());
+        assertEquals("test@example.com", jwtUtils.getEmailFromToken(token));
     }
 
     @Test

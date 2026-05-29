@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -18,9 +19,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.ducnguyen.clinic_identity.dto.request.AuthRequest;
 import com.ducnguyen.clinic_identity.dto.request.RegisterRequest;
-import com.ducnguyen.clinic_identity.dto.response.AuthResponse;
+import com.ducnguyen.clinic_identity.dto.response.LoginResult;
 import com.ducnguyen.clinic_identity.service.AuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import jakarta.servlet.http.Cookie;
 
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false) // Tạm bỏ qua Security Filter vì mình test Controller layer
@@ -77,9 +80,12 @@ public class AuthControllerTest {
     }
 
     @Test
-    void login_ShouldReturn200AndToken_WhenCredentialsAreValid() throws Exception {
-        AuthResponse authResponse = AuthResponse.builder().token("mockToken").build();
-        when(authService.login(any(AuthRequest.class))).thenReturn(authResponse);
+    void login_ShouldReturn200AndTokenAndSetCookie_WhenCredentialsAreValid() throws Exception {
+        LoginResult loginResult = LoginResult.builder()
+                .accessToken("mockAccessToken")
+                .refreshToken("mockRefreshToken")
+                .build();
+        when(authService.login(any(AuthRequest.class))).thenReturn(loginResult);
 
         mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -87,7 +93,42 @@ public class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("Login successful"))
-                .andExpect(jsonPath("$.data.token").value("mockToken"));
+                .andExpect(jsonPath("$.data.token").value("mockAccessToken"))
+                .andExpect(cookie().exists("refresh_token"))
+                .andExpect(cookie().value("refresh_token", "mockRefreshToken"))
+                .andExpect(cookie().httpOnly("refresh_token", true));
+    }
+
+    @Test
+    void logout_ShouldReturn200AndClearCookie_WhenCookieExists() throws Exception {
+        doNothing().when(authService).logout("mockRefreshToken");
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                .cookie(new Cookie("refresh_token", "mockRefreshToken")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value("Logged out successfully"))
+                .andExpect(cookie().maxAge("refresh_token", 0));
+    }
+
+    @Test
+    void refresh_ShouldReturnNewAccessToken_WhenCookieExists() throws Exception {
+        when(authService.refreshToken("mockRefreshToken")).thenReturn("newAccessToken");
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                .cookie(new Cookie("refresh_token", "mockRefreshToken")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value("Token refreshed successfully"))
+                .andExpect(jsonPath("$.data.token").value("newAccessToken"));
+    }
+
+    @Test
+    void refresh_ShouldReturn401_WhenCookieIsMissing() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/refresh"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.message").value("Refresh token is missing"));
     }
 
     @Test
