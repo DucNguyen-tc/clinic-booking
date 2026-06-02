@@ -14,6 +14,11 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    private final HeaderAuthenticationFilter headerAuthFilter;
+
+    public SecurityConfig(HeaderAuthenticationFilter headerAuthFilter) {
+        this.headerAuthFilter = headerAuthFilter;
+    }
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -25,9 +30,10 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/auth/**").permitAll()
+                .requestMatchers("/api/auth/**").permitAll()
                 .anyRequest().authenticated()
-            );
+            )
+            .addFilterBefore(headerAuthFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
             
         return http.build();
     }

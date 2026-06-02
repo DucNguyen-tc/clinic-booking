@@ -58,7 +58,7 @@ public class AuthControllerTest {
     void register_ShouldReturn200_WhenRequestIsValid() throws Exception {
         doNothing().when(authService).register(any(RegisterRequest.class));
 
-        mockMvc.perform(post("/api/v1/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(registerRequest)))
                 .andExpect(status().isOk())
@@ -70,7 +70,7 @@ public class AuthControllerTest {
     void register_ShouldReturn400_WhenEmailIsInvalid() throws Exception {
         registerRequest.setEmail("invalid-email");
 
-        mockMvc.perform(post("/api/v1/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(registerRequest)))
                 .andExpect(status().isBadRequest())
@@ -87,7 +87,7 @@ public class AuthControllerTest {
                 .build();
         when(authService.login(any(AuthRequest.class))).thenReturn(loginResult);
 
-        mockMvc.perform(post("/api/v1/auth/login")
+        mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(authRequest)))
                 .andExpect(status().isOk())
@@ -103,7 +103,7 @@ public class AuthControllerTest {
     void logout_ShouldReturn200AndClearCookie_WhenCookieExists() throws Exception {
         doNothing().when(authService).logout("mockRefreshToken");
 
-        mockMvc.perform(post("/api/v1/auth/logout")
+        mockMvc.perform(post("/api/auth/logout")
                 .cookie(new Cookie("refresh_token", "mockRefreshToken")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
@@ -115,7 +115,7 @@ public class AuthControllerTest {
     void refresh_ShouldReturnNewAccessToken_WhenCookieExists() throws Exception {
         when(authService.refreshToken("mockRefreshToken")).thenReturn("newAccessToken");
 
-        mockMvc.perform(post("/api/v1/auth/refresh")
+        mockMvc.perform(post("/api/auth/refresh")
                 .cookie(new Cookie("refresh_token", "mockRefreshToken")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
@@ -125,7 +125,7 @@ public class AuthControllerTest {
 
     @Test
     void refresh_ShouldReturn401_WhenCookieIsMissing() throws Exception {
-        mockMvc.perform(post("/api/v1/auth/refresh"))
+        mockMvc.perform(post("/api/auth/refresh"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401))
                 .andExpect(jsonPath("$.message").value("Refresh token is missing"));
@@ -135,7 +135,7 @@ public class AuthControllerTest {
     void validateToken_ShouldReturn200AndTrue_WhenTokenIsValid() throws Exception {
         when(authService.validateToken("validToken")).thenReturn(true);
 
-        mockMvc.perform(post("/api/v1/auth/validate")
+        mockMvc.perform(post("/api/auth/validate")
                 .param("token", "validToken"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))

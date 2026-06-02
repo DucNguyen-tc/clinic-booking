@@ -1,0 +1,97 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      # -------------------------------------------------------
+      # ROUTES — Định tuyến đến từng microservice
+      # -------------------------------------------------------
+      routes:
+        # 1. Identity Service (port 8081) — Auth endpoints (public)
+        - id: clinic-identity
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=0
+
+        # 2. Profile Service (port 8082) — Doctor, Patient, Specialty, Schedule
+        - id: clinic_profile
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/doctors/**, /api/patients/**, /api/specialties/**
+          filters:
+            - StripPrefix=0
+
+        # 3. Appointment Service (port 8083)
+        - id: clinic_appointment
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/appointments/**
+          filters:
+            - StripPrefix=0
+
+        # 4. Medical Record Service (port 8084)
+        - id: clinic_medical_record
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/medical-records/**
+          filters:
+            - StripPrefix=0
+
+        # 5. Payment Service (port 8085)
+        - id: clinic_payment
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/payments/**
+          filters:
+            - StripPrefix=0
+
+        # 6. Notification Service (port 8086)
+        - id: clinic_notification
+          uri: http://localhost:8086
+          predicates:
+            - Path=/api/v1/notifications/**
+          filters:
+            - StripPrefix=0
+
+      # -------------------------------------------------------
+      # CORS — Cấu hình tập trung tại Gateway
+      # -------------------------------------------------------
+      globalcors:
+        corsConfigurations:
+          "[/**]":
+            allowedOrigins:
+              - "http://localhost:3000" # Next.js frontend
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+
+# -------------------------------------------------------
+# JWT — Dùng chung secret key với clinic-identity
+# Gateway tự validate token, không gọi về identity service
+# -------------------------------------------------------
+jwt:
+  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+  expirationMs: 3600000
+
+# -------------------------------------------------------
+# LOGGING
+# -------------------------------------------------------
+logging:
+  level:
+    root: INFO
+    com.ducnguyen.api_gateway: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    reactor.netty.http.client: DEBUG
