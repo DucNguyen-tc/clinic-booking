@@ -55,7 +55,7 @@ spring:
         - id: clinic_notification
           uri: http://localhost:8086
           predicates:
-            - Path=/api/v1/notifications/**
+            - Path=/api/notifications/**
           filters:
             - StripPrefix=0
 

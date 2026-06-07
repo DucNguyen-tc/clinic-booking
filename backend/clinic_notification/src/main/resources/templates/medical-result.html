@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: #16a34a; color: white; padding: 30px; text-align: center; }
+        .body { padding: 30px; }
+        .btn { display: inline-block; background: #16a34a; color: white; padding: 12px 30px; border-radius: 6px; text-decoration: none; font-weight: bold; margin: 20px 0; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #888; font-size: 13px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🩺 Kết quả khám đã có!</h1>
+    </div>
+    <div class="body">
+        <p>Xin chào <strong th:text="${patientName}">Bệnh nhân</strong>,</p>
+        <p>Bác sĩ <strong th:text="${doctorName}">BS. Nguyễn Văn A</strong> đã cập nhật kết quả khám cho lịch hẹn <strong>#<span th:text="${appointmentId}">1001</span></strong>.</p>
+        <p>Bạn có thể xem kết quả tại đây:</p>
+        <div style="text-align: center;">
+            <a th:href="${resultUrl}" class="btn">📄 Xem kết quả khám</a>
+        </div>
+        <p style="color: #666; font-size: 13px;">Hoặc copy link: <span th:text="${resultUrl}"></span></p>
+    </div>
+    <div class="footer">
+        <p>Email này được gửi tự động từ hệ thống Phòng Khám Online.</p>
+    </div>
+</div>
+</body>
+</html>

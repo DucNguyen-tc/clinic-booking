@@ -89,7 +89,11 @@ classDiagram
     }
 ```
 
+<<<<<<< HEAD
 - **User Entity**: Lưu trữ thông tin tài khoản cơ bản. Không lưu thông tin chi tiết (Hồ sơ chi tiết của Bác sĩ và Bệnh nhân sẽ do `clinic_profile` quản lý).
+=======
+- **User Entity**: Lưu trữ thông tin tài khoản cơ bản. Không lưu thông tin chi tiết (Hồ sơ chi tiết của Bác sĩ và Bệnh nhân sẽ do `clinic-profile` quản lý).
+>>>>>>> 63ae043 (khoa)
 - **Session Entity**: Lưu trữ Refresh Token đang hoạt động. Khi người dùng đăng nhập lại, hệ thống sẽ thực hiện thao tác xóa session cũ của `userId` đó và lưu session mới nhằm hỗ trợ cơ chế ghi đè thông minh.
 
 ---
@@ -97,7 +101,11 @@ classDiagram
 ## 🔗 7. Tương tác với các Dịch vụ khác (Inter-service Communication)
 
 - **Với Client / API Gateway**: Cung cấp Access Token ngắn hạn cho Client để đính kèm vào Header `Authorization: Bearer <Token>` khi gọi các dịch vụ nội bộ khác.
+<<<<<<< HEAD
 - **Với các Dịch vụ nội bộ (`clinic_profile`, `clinic_appointment`, v.v.)**: Các dịch vụ này sẽ gọi API `/api/v1/auth/validate` của `clinic-identity` (ưu tiên gọi thông qua **Feign Client** được cấu hình bảo mật ở API Gateway) để kiểm tra tính hợp lệ của mã thông báo trước khi xử lý nghiệp vụ.
+=======
+- **Với các Dịch vụ nội bộ (`clinic-profile`, `clinic-appointment`, v.v.)**: Các dịch vụ này sẽ gọi API `/api/v1/auth/validate` của `clinic-identity` (ưu tiên gọi thông qua **Feign Client** được cấu hình bảo mật ở API Gateway) để kiểm tra tính hợp lệ của mã thông báo trước khi xử lý nghiệp vụ.
+>>>>>>> 63ae043 (khoa)
 
 ---
 

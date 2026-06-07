@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: #2563eb; color: white; padding: 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .body { padding: 30px; }
+        .info-box { background: #f0f9ff; border-left: 4px solid #2563eb; padding: 15px; margin: 20px 0; border-radius: 4px; }
+        .info-row { display: flex; margin: 8px 0; }
+        .info-label { font-weight: bold; color: #555; min-width: 130px; }
+        .info-value { color: #333; }
+        .appointment-id { font-size: 28px; font-weight: bold; color: #2563eb; text-align: center; margin: 20px 0; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #888; font-size: 13px; }
+        .note { background: #fff3cd; border: 1px solid #ffc107; padding: 12px; border-radius: 4px; margin-top: 20px; font-size: 14px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>✅ Đặt lịch thành công!</h1>
+        <p style="margin: 5px 0 0;">Phòng Khám Online</p>
+    </div>
+
+    <div class="body">
+        <p>Xin chào <strong th:text="${patientName}">Bệnh nhân</strong>,</p>
+        <p>Lịch khám của bạn đã được xác nhận thành công. Vui lòng ghi nhớ thông tin bên dưới:</p>
+
+        <div class="appointment-id">
+            Mã lịch hẹn: #<span th:text="${appointmentId}">1001</span>
+        </div>
+
+        <div class="info-box">
+            <div class="info-row">
+                <span class="info-label">👨‍⚕️ Bác sĩ:</span>
+                <span class="info-value" th:text="${doctorName}">BS. Nguyễn Văn A</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">🏥 Chuyên khoa:</span>
+                <span class="info-value" th:text="${specialty}">Tim mạch</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">📅 Ngày khám:</span>
+                <span class="info-value" th:text="${#temporals.format(appointmentDate, 'dd/MM/yyyy')}">15/06/2026</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">⏰ Giờ khám:</span>
+                <span class="info-value" th:text="${#temporals.format(appointmentTime, 'HH:mm')}">09:00</span>
+            </div>
+        </div>
+
+        <div class="note">
+            ⚠️ <strong>Lưu ý:</strong> Vui lòng đến trước giờ hẹn 15 phút để làm thủ tục. Mang theo CMND/CCCD và thẻ BHYT (nếu có).
+            Nếu cần hủy lịch, vui lòng hủy trước 24 giờ.
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Email này được gửi tự động từ hệ thống Phòng Khám Online.</p>
+        <p>Nếu bạn không đặt lịch này, vui lòng liên hệ hỗ trợ ngay.</p>
+    </div>
+</div>
+</body>
+</html>

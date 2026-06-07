@@ -1,51 +1,56 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { Mail } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { authService } from "@/services/auth.service"
+import * as React from "react";
+import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Mail } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { authService } from "@/services/auth.service";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { PasswordInput } from "@/components/ui/password-input"
-import { registerSchema, type RegisterFormData } from "@/types/auth"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { registerSchema, type RegisterFormData } from "@/types/auth";
 
 export function RegisterForm() {
-  const router = useRouter()
+  const router = useRouter();
   const {
-    register,
-    handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
-  })
+  });
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
       // Gọi API Register (trường terms sẽ bị backend bỏ qua nếu không cần thiết)
-      await authService.register(data)
+      await authService.register(data);
 
       // Nếu thành công, điều hướng sang trang login (hoặc báo thành công)
-      router.push('/login')
+      router.push("/login");
     } catch (error: any) {
-      console.error("Register failed:", error)
+      console.error("Register failed:", error);
       // TODO: Handle display error message (toast)
     }
-  }
+  };
 
   return (
     <div className="max-w-md mx-auto w-full">
       <div className="mb-10 text-left">
-        <h1 className="font-headline-xl text-3xl md:text-4xl font-bold text-inverse-on-surface mb-3 tracking-tight">Đăng ký tài khoản</h1>
-        <p className="font-body-lg text-lg text-outline-variant">Tham gia cùng MediBook ngay hôm nay</p>
+        <h1 className="font-headline-xl text-3xl md:text-4xl font-bold text-inverse-on-surface mb-3 tracking-tight">
+          Đăng ký tài khoản
+        </h1>
+        <p className="font-body-lg text-lg text-outline-variant">
+          Tham gia cùng MediBook ngay hôm nay
+        </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-2">
-          <label htmlFor="email" className="font-label-md text-sm text-inverse-on-surface/90 font-semibold tracking-wide">
+          <label
+            htmlFor="email"
+            className="font-label-md text-sm text-inverse-on-surface/90 font-semibold tracking-wide"
+          >
             Email
           </label>
           <div className="relative">
@@ -64,7 +69,10 @@ export function RegisterForm() {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="password" className="font-label-md text-sm text-inverse-on-surface/90 font-semibold tracking-wide">
+          <label
+            htmlFor="password"
+            className="font-label-md text-sm text-inverse-on-surface/90 font-semibold tracking-wide"
+          >
             Mật khẩu
           </label>
           <PasswordInput
@@ -88,8 +96,18 @@ export function RegisterForm() {
                 {...register("terms")}
               />
             </div>
-            <label htmlFor="terms" className="font-body-md text-sm md:text-base text-inverse-on-surface/90 leading-relaxed cursor-pointer select-none">
-              Tôi đồng ý với các <span className="text-primary-fixed hover:text-primary hover:underline cursor-pointer font-semibold transition-all">điều khoản</span> và <span className="text-primary-fixed hover:text-primary hover:underline cursor-pointer font-semibold transition-all">chính sách</span>
+            <label
+              htmlFor="terms"
+              className="font-body-md text-sm md:text-base text-inverse-on-surface/90 leading-relaxed cursor-pointer select-none"
+            >
+              Tôi đồng ý với các{" "}
+              <span className="text-primary-fixed hover:text-primary hover:underline cursor-pointer font-semibold transition-all">
+                điều khoản
+              </span>{" "}
+              và{" "}
+              <span className="text-primary-fixed hover:text-primary hover:underline cursor-pointer font-semibold transition-all">
+                chính sách
+              </span>
             </label>
           </div>
           {errors.terms && (
@@ -104,12 +122,15 @@ export function RegisterForm() {
         <div className="pt-8 text-center border-t border-outline-variant/10 mt-6">
           <p className="font-body-lg text-sm md:text-base text-outline-variant">
             Đã có tài khoản?{" "}
-            <Link href="/login" className="text-primary-fixed font-bold hover:underline ml-1 transition-all">
+            <Link
+              href="/login"
+              className="text-primary-fixed font-bold hover:underline ml-1 transition-all"
+            >
               Đăng nhập ngay
             </Link>
           </p>
         </div>
       </form>
     </div>
-  )
+  );
 }
