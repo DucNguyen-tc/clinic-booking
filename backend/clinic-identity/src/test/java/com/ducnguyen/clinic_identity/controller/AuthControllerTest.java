@@ -3,6 +3,7 @@ package com.ducnguyen.clinic_identity.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -140,5 +141,25 @@ public class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.data").value(true));
+    }
+
+    @Test
+    void getMe_ShouldReturn200AndUserInfo_WhenAuthenticated() throws Exception {
+        com.ducnguyen.clinic_identity.dto.response.UserResponse userResponse = 
+            com.ducnguyen.clinic_identity.dto.response.UserResponse.builder()
+                .id("user123")
+                .email("test@example.com")
+                .role(com.ducnguyen.clinic_identity.enums.Role.PATIENT)
+                .build();
+
+        when(authService.getMe()).thenReturn(userResponse);
+
+        mockMvc.perform(get("/api/auth/get-me"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value("Get user info successfully"))
+                .andExpect(jsonPath("$.data.id").value("user123"))
+                .andExpect(jsonPath("$.data.email").value("test@example.com"))
+                .andExpect(jsonPath("$.data.role").value("PATIENT"));
     }
 }

@@ -5,6 +5,11 @@ import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Mail } from "lucide-react"
+import { useRouter } from "next/navigation"
+
+import { useAuthStore } from "@/store/auth-store"
+import { authService } from "@/services/auth.service"
+import { api } from "@/lib/axios"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +17,8 @@ import { PasswordInput } from "@/components/ui/password-input"
 import { loginSchema, type LoginFormData } from "@/types/auth"
 
 export function LoginForm() {
+  const router = useRouter()
+  const setAuth = useAuthStore((state) => state.setAuth)
   const {
     register,
     handleSubmit,
@@ -21,8 +28,35 @@ export function LoginForm() {
   })
 
   const onSubmit = async (data: LoginFormData) => {
-    // TODO: Connect to backend API
-    console.log(data)
+    try {
+      // 1. Gọi API Login lấy accessToken
+      const loginRes = await authService.login(data)
+      const accessToken = loginRes.data.token
+
+      // 2. Set tạm token cho instance api để gọi getMe
+      // Mặc dù axios interceptor sẽ tự lấy, nhưng vì setState chưa update ngay lập tức
+      // nên ta cấu hình axios mặc định
+      api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`
+
+      // 3. Gọi API getMe
+      const userRes = await authService.getMe()
+      const user = userRes.data
+
+      // 4. Lưu vào Zustand Store
+      setAuth(accessToken, user)
+
+      // 5. Điều hướng theo role
+      if (user.role === 'ADMIN') {
+        router.push('/admin/dashboard')
+      } else if (user.role === 'DOCTOR') {
+        router.push('/doctor/today')
+      } else {
+        router.push('/')
+      }
+    } catch (error: any) {
+      console.error("Login failed:", error)
+      // TODO: Handle display error message (toast)
+    }
   }
 
   return (

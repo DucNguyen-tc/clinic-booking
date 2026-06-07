@@ -6,6 +6,7 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,6 +18,7 @@ import com.ducnguyen.clinic_identity.dto.request.AuthRequest;
 import com.ducnguyen.clinic_identity.dto.request.RegisterRequest;
 import com.ducnguyen.clinic_identity.dto.response.AuthResponse;
 import com.ducnguyen.clinic_identity.dto.response.LoginResult;
+import com.ducnguyen.clinic_identity.dto.response.UserResponse;
 import com.ducnguyen.clinic_identity.exception.CustomException;
 import com.ducnguyen.clinic_identity.service.AuthService;
 
@@ -100,5 +102,11 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Boolean>> validateToken(@RequestParam String token) {
         boolean isValid = authService.validateToken(token);
         return ResponseEntity.ok(ApiResponse.success(isValid, "Token validation result"));
+    }
+
+    @GetMapping("/get-me")
+    public ResponseEntity<ApiResponse<UserResponse>> getMe() {
+        UserResponse response = authService.getMe();
+        return ResponseEntity.ok(ApiResponse.success(response, "Get user info successfully"));
     }
 }

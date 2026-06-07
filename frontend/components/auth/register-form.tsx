@@ -5,6 +5,8 @@ import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Mail } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { authService } from "@/services/auth.service"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +14,7 @@ import { PasswordInput } from "@/components/ui/password-input"
 import { registerSchema, type RegisterFormData } from "@/types/auth"
 
 export function RegisterForm() {
+  const router = useRouter()
   const {
     register,
     handleSubmit,
@@ -21,8 +24,16 @@ export function RegisterForm() {
   })
 
   const onSubmit = async (data: RegisterFormData) => {
-    // TODO: Connect to backend API
-    console.log(data)
+    try {
+      // Gọi API Register (trường terms sẽ bị backend bỏ qua nếu không cần thiết)
+      await authService.register(data)
+
+      // Nếu thành công, điều hướng sang trang login (hoặc báo thành công)
+      router.push('/login')
+    } catch (error: any) {
+      console.error("Register failed:", error)
+      // TODO: Handle display error message (toast)
+    }
   }
 
   return (

@@ -124,4 +124,23 @@ public class AuthServiceImpl implements AuthService {
 
         return jwtUtils.generateToken(user);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public com.ducnguyen.clinic_identity.dto.response.UserResponse getMe() {
+        org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new CustomException(HttpStatus.UNAUTHORIZED.value(), "User is not authenticated");
+        }
+
+        String userId = (String) authentication.getPrincipal();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND.value(), "User not found"));
+
+        return com.ducnguyen.clinic_identity.dto.response.UserResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .build();
+    }
 }

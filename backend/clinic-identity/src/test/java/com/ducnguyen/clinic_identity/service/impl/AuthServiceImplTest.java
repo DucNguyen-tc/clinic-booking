@@ -209,4 +209,30 @@ public class AuthServiceImplTest {
 
         assertEquals(HttpStatus.UNAUTHORIZED.value(), exception.getStatus());
     }
+
+    @Test
+    void getMe_ShouldReturnUserResponse_WhenAuthenticated() {
+        org.springframework.security.core.Authentication auth = 
+            new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("user123", null);
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        when(userRepository.findById("user123")).thenReturn(Optional.of(testUser));
+
+        com.ducnguyen.clinic_identity.dto.response.UserResponse response = authService.getMe();
+
+        assertNotNull(response);
+        assertEquals("user123", response.getId());
+        assertEquals("test@example.com", response.getEmail());
+        assertEquals(Role.PATIENT, response.getRole());
+
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void getMe_ShouldThrowException_WhenNotAuthenticated() {
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+
+        CustomException exception = assertThrows(CustomException.class, () -> authService.getMe());
+        assertEquals(HttpStatus.UNAUTHORIZED.value(), exception.getStatus());
+    }
 }

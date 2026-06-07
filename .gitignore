@@ -61,3 +61,8 @@ out/
 /AGENTS.md
 /backend/AGENTS.md
 /frontend/AGENTS.md
+
+# ==========================================
+# 7. Không push file README.md
+# ==========================================
+README.md
