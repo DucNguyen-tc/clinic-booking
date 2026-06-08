@@ -109,4 +109,15 @@ public class AuthController {
         UserResponse response = authService.getMe();
         return ResponseEntity.ok(ApiResponse.success(response, "Get user info successfully"));
     }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody com.ducnguyen.clinic_identity.dto.request.ChangePasswordRequest request) {
+        org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new CustomException(HttpStatus.UNAUTHORIZED.value(), "User is not authenticated");
+        }
+        String userId = (String) authentication.getPrincipal();
+        authService.changePassword(userId, request);
+        return ResponseEntity.ok(ApiResponse.success(null, "Password changed successfully"));
+    }
 }

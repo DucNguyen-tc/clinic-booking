@@ -3,45 +3,26 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import {
-  Pencil,
-  Lock,
-  ShieldCheck,
-  LogOut,
-  ChevronRight,
-  Heart,
-} from "lucide-react";
+import { Pencil, Lock, Heart } from "lucide-react";
+import Image from "next/image";
 import { ProfileForm } from "@/components/doctor/profile-form";
-import { NotificationSettingsCard } from "@/components/doctor/notification-settings";
 import type {
   DoctorProfileFormData,
-  NotificationSettings,
   PasswordChangeFormData,
 } from "@/types/doctor";
+import { doctorProfileService } from "@/services/doctor.service";
+import { useAuthStore } from "@/store/auth-store";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
-
-const MOCK_PROFILE: DoctorProfileFormData = {
-  fullName: "Nguyễn Anh",
-  specialty: "Nội tim mạch & Can thiệp",
-  degree: "Tiến sĩ Y khoa (PhD)",
-  workEmail: "anh.nguyen@medibook.vn",
-  phone: "090 123 4567",
-  bio: "Bác sĩ Nguyễn Anh là chuyên gia hàng đầu trong lĩnh vực Nội tim mạch với hơn 15 năm kinh nghiệm công tác tại các bệnh viện lớn. Ông chuyên điều trị các bệnh lý cao huyết áp, suy tim và can thiệp mạch vành, luôn áp dụng các kỹ thuật tiên tiến nhất để đảm bảo hiệu quả điều trị tối ưu cho bệnh nhân.",
-};
-
-const MOCK_NOTIFICATIONS: NotificationSettings = {
-  emailNewAppointment: true,
-  browserPush: false,
-  smsReminder: true,
-};
+// ── Mock Data Removed ──────────────────────────────────────────────────────────
 
 // ── Password Change Schema ────────────────────────────────────────────────────
 
 const passwordSchema = z
   .object({
     currentPassword: z.string().min(1, "Vui lòng nhập mật khẩu hiện tại"),
-    newPassword: z.string().min(8, "Mật khẩu mới tối thiểu 8 ký tự"),
+    newPassword: z.string().min(6, "Mật khẩu mới tối thiểu 6 ký tự"),
     confirmPassword: z.string().min(1, "Vui lòng xác nhận mật khẩu"),
   })
   .refine((d) => d.newPassword === d.confirmPassword, {
@@ -61,8 +42,12 @@ function PasswordChangeCard() {
   });
 
   const onSubmit = async (data: PasswordChangeFormData) => {
-    console.log("Changing password:", data);
-    await new Promise((r) => setTimeout(r, 600));
+    try {
+      await doctorProfileService.changePassword(data);
+      toast.success("Đổi mật khẩu thành công!");
+    } catch (error: any) {
+      toast.error("Lỗi đổi mật khẩu: " + (error.response?.data?.message || error.message));
+    }
   };
 
   return (
@@ -97,7 +82,7 @@ function PasswordChangeCard() {
           <input
             {...register("newPassword")}
             type="password"
-            placeholder="Tối thiểu 8 ký tự"
+            placeholder="Tối thiểu 6 ký tự"
             className="w-full bg-surface border border-outline-variant rounded-xl p-4 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-sm"
           />
           {errors.newPassword && (
@@ -137,6 +122,51 @@ function PasswordChangeCard() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function DoctorProfilePage() {
+  const { user } = useAuthStore();
+  const [profile, setProfile] = useState<DoctorProfileFormData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.id) {
+      doctorProfileService.getProfile(user.id.toString())
+        .then((res) => {
+          if (res.data) {
+            setProfile({
+              fullName: res.data.fullName,
+              specialtyId: res.data.specialty?.id || 1,
+              specialtyName: res.data.specialty?.name || "",
+              degree: res.data.degree,
+              experienceYears: res.data.experienceYears,
+              price: res.data.price,
+            });
+          }
+        })
+        .catch(err => console.error("Failed to load profile", err))
+        .finally(() => setIsLoading(false));
+    }
+  }, [user]);
+
+  const handleUpdateProfile = async (data: DoctorProfileFormData) => {
+    if (!user?.id) return;
+    try {
+      await doctorProfileService.updateProfile(user.id.toString(), {
+        userId: user.id.toString(),
+        specialtyId: data.specialtyId,
+        fullName: data.fullName,
+        degree: data.degree,
+        experienceYears: data.experienceYears,
+        price: data.price,
+      } as any);
+      toast.success("Cập nhật hồ sơ thành công!");
+    } catch (error: any) {
+      toast.error("Lỗi cập nhật: " + (error.response?.data?.message || error.message));
+    }
+  };
+
+  if (isLoading) {
+    return <div className="p-12 text-center text-on-surface-variant">Đang tải hồ sơ...</div>;
+  }
+
   return (
     <div className="max-w-7xl mx-auto space-y-0">
       {/* Hero Header */}
@@ -145,9 +175,13 @@ export default function DoctorProfilePage() {
           {/* Avatar */}
           <div className="relative">
             <div className="w-40 h-40 rounded-3xl border-4 border-on-primary clinical-shadow bg-secondary-container flex items-center justify-center overflow-hidden">
-              <span className="text-5xl font-bold text-on-secondary-container">
-                NA
-              </span>
+              <Image
+                src="/images/doctor-image.png"
+                alt="Avatar"
+                width={160}
+                height={160}
+                className="w-full h-full object-cover"
+              />
             </div>
             <button className="absolute -bottom-2 -right-2 bg-secondary text-on-secondary p-3 rounded-full clinical-shadow hover:scale-105 transition-transform">
               <Pencil className="w-4 h-4" />
@@ -156,10 +190,10 @@ export default function DoctorProfilePage() {
 
           {/* Info */}
           <div className="flex-1 pb-4">
-            <h1 className="text-4xl font-bold">Bác sĩ Nguyễn Anh</h1>
+            <h1 className="text-4xl font-bold">Bác sĩ {profile?.fullName || "Chưa cập nhật"}</h1>
             <p className="text-lg opacity-90 flex items-center gap-2 mt-1">
               <Heart className="w-5 h-5" />
-              Chuyên khoa Tim mạch • 15 năm kinh nghiệm
+              Chuyên khoa {profile?.specialtyName || "Chưa cập nhật"} • {profile?.experienceYears || 0} năm kinh nghiệm
             </p>
           </div>
         </div>
@@ -170,74 +204,15 @@ export default function DoctorProfilePage() {
         <div className="max-w-7xl mx-auto grid grid-cols-12 gap-6">
           {/* Left: Profile + Notifications */}
           <div className="col-span-12 lg:col-span-8 space-y-6">
-            <ProfileForm defaultValues={MOCK_PROFILE} />
-            <NotificationSettingsCard defaultValues={MOCK_NOTIFICATIONS} />
+            {profile && <ProfileForm defaultValues={profile} onSubmit={handleUpdateProfile} />}
           </div>
 
           {/* Right: Password + Account Status + Logout */}
           <div className="col-span-12 lg:col-span-4 space-y-6">
             <PasswordChangeCard />
-
-            {/* Account Status Card */}
-            <div className="bg-tertiary-container/10 border border-tertiary-container/30 p-8 rounded-[2rem] clinical-shadow">
-              <div className="flex justify-between items-start mb-4">
-                <span className="px-3 py-1 bg-tertiary-fixed text-on-tertiary-fixed rounded-full text-xs font-bold">
-                  ACTIVE
-                </span>
-                <ShieldCheck className="w-6 h-6 text-tertiary" />
-              </div>
-              <h3 className="font-semibold text-2xl text-on-surface mb-2">
-                Tài khoản chính thức
-              </h3>
-              <p className="text-sm text-on-surface-variant mb-6">
-                Hồ sơ của bạn đã được xác thực bởi hội đồng y khoa.
-              </p>
-              <div className="h-2 bg-on-surface/10 rounded-full overflow-hidden">
-                <div className="w-full h-full bg-tertiary rounded-full" />
-              </div>
-              <p className="text-xs mt-2 text-on-surface-variant/60">
-                Lần cập nhật cuối: 12/10/2023
-              </p>
-            </div>
-
-            {/* Logout */}
-            <div className="bg-error-container/20 border border-error-container p-6 rounded-[2rem] flex items-center justify-between group cursor-pointer hover:bg-error-container/40 transition-colors">
-              <div className="flex items-center gap-3">
-                <LogOut className="w-5 h-5 text-error" />
-                <span className="font-semibold text-sm text-error">
-                  Đăng xuất tài khoản
-                </span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-error group-hover:translate-x-1 transition-transform" />
-            </div>
           </div>
         </div>
       </section>
-
-      {/* Footer Stats */}
-      <footer className="bg-surface-container-high py-12 px-12 text-center rounded-3xl">
-        <div className="max-w-2xl mx-auto space-y-4">
-          <Heart className="w-8 h-8 text-primary mx-auto" />
-          <p className="text-lg text-on-surface">
-            Cảm ơn sự tận tâm của bạn vì sức khỏe cộng đồng.
-          </p>
-          <div className="flex justify-center gap-8 pt-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-primary">1,240+</p>
-              <p className="text-xs text-on-surface-variant">
-                Bệnh nhân đã khám
-              </p>
-            </div>
-            <div className="h-10 w-px bg-outline-variant" />
-            <div className="text-center">
-              <p className="text-2xl font-bold text-primary">4.9/5</p>
-              <p className="text-xs text-on-surface-variant">
-                Đánh giá trung bình
-              </p>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

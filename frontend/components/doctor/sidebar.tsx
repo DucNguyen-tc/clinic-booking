@@ -11,8 +11,12 @@ import {
   User,
   Plus,
   Stethoscope,
+  LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useAuthStore } from "@/store/auth-store"
+import { authService } from "@/services/auth.service"
+import { useRouter } from "next/navigation"
 
 const NAV_ITEMS = [
   {
@@ -50,10 +54,23 @@ const NAV_ITEMS = [
 
 export function DoctorSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+  const clearAuth = useAuthStore((state) => state.logout)
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return pathname === href
     return pathname.startsWith(href)
+  }
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout()
+    } catch (error) {
+      console.error("Logout API failed:", error)
+    } finally {
+      clearAuth()
+      router.replace("/login")
+    }
   }
 
   return (
@@ -99,11 +116,19 @@ export function DoctorSidebar() {
         })}
       </nav>
 
-      {/* CTA Button */}
-      <div className="p-4 border-t border-outline-variant/30">
+      {/* CTA & Logout Footer */}
+      <div className="p-4 border-t border-outline-variant/30 flex flex-col gap-3">
         <button className="w-full py-3 bg-primary text-on-primary rounded-full font-bold flex items-center justify-center gap-2 transition-all hover:bg-primary/90 active:scale-95 shadow-md text-sm">
           <Plus className="w-4 h-4" />
           <span>Bệnh nhân mới</span>
+        </button>
+
+        <button
+          onClick={handleLogout}
+          className="w-full py-3 rounded-full font-semibold flex items-center justify-center gap-2 transition-all duration-200 text-error hover:bg-error-container/20 active:scale-95 text-sm"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Đăng xuất</span>
         </button>
       </div>
     </aside>

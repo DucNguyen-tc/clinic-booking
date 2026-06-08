@@ -143,4 +143,22 @@ public class AuthServiceImpl implements AuthService {
                 .role(user.getRole())
                 .build();
     }
+
+    @Override
+    @Transactional
+    public void changePassword(String userId, com.ducnguyen.clinic_identity.dto.request.ChangePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND.value(), "User not found"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            throw new CustomException(HttpStatus.BAD_REQUEST.value(), "Mật khẩu hiện tại không đúng");
+        }
+
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new CustomException(HttpStatus.BAD_REQUEST.value(), "Mật khẩu xác nhận không khớp");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
 }

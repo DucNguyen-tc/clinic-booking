@@ -50,11 +50,11 @@ export interface NotificationSettings {
 
 export interface DoctorProfileFormData {
   fullName: string
-  specialty: string
-  degree: string            // "Tiến sĩ Y khoa (PhD)"
-  workEmail: string
-  phone: string
-  bio: string
+  specialtyId: number
+  specialtyName?: string
+  degree: string
+  experienceYears: number
+  price: number
 }
 
 export interface PasswordChangeFormData {

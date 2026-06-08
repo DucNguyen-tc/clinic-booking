@@ -5,11 +5,13 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 
 import { useAuthStore } from "@/store/auth-store";
 import { authService } from "@/services/auth.service";
 import { api } from "@/lib/axios";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +20,17 @@ import { loginSchema, type LoginFormData } from "@/types/auth";
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
+
+  useEffect(() => {
+    if (searchParams.get("registered") === "true") {
+      toast.success("Đăng ký thành công! Vui lòng đăng nhập.");
+      // Option: replace URL to clear the param, but it's optional
+      router.replace("/login");
+    }
+  }, [searchParams, router]);
+
   const {
     register,
     handleSubmit,
@@ -46,6 +58,7 @@ export function LoginForm() {
       setAuth(accessToken, user);
 
       // 5. Điều hướng theo role
+      toast.success("Đăng nhập thành công!");
       if (user.role === "ADMIN") {
         router.push("/admin/dashboard");
       } else if (user.role === "DOCTOR") {
@@ -54,8 +67,7 @@ export function LoginForm() {
         router.push("/");
       }
     } catch (error: any) {
-      console.error("Login failed:", error);
-      // TODO: Handle display error message (toast)
+      toast.error("Đăng nhập thất bại: " + (error.response?.data?.message || "Vui lòng kiểm tra lại thông tin"));
     }
   };
 

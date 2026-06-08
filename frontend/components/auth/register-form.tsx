@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,8 @@ import { registerSchema, type RegisterFormData } from "@/types/auth";
 export function RegisterForm() {
   const router = useRouter();
   const {
+    register,
+    handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -26,11 +29,11 @@ export function RegisterForm() {
       // Gọi API Register (trường terms sẽ bị backend bỏ qua nếu không cần thiết)
       await authService.register(data);
 
+      toast.success("Đăng ký thành công! Vui lòng đăng nhập.");
       // Nếu thành công, điều hướng sang trang login (hoặc báo thành công)
-      router.push("/login");
+      router.push("/login?registered=true");
     } catch (error: any) {
-      console.error("Register failed:", error);
-      // TODO: Handle display error message (toast)
+      toast.error("Đăng ký thất bại: " + (error.response?.data?.message || "Vui lòng thử lại"));
     }
   };
 

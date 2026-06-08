@@ -3,10 +3,7 @@ package com.ducnguyen.clinic_identity.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
-<<<<<<< HEAD
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-=======
->>>>>>> 63ae043 (khoa)
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;

@@ -39,7 +39,7 @@ export function DoctorTopBar({ searchPlaceholder = "Tìm kiếm bệnh nhân, b�
         <div className="flex items-center gap-3 cursor-pointer group">
           <div className="relative w-9 h-9 rounded-full overflow-hidden border-2 border-primary/20 flex-shrink-0">
             <Image
-              src="/images/doctor-avatar.png"
+              src="/images/doctor-image.png"
               alt="Doctor Avatar"
               fill
               className="object-cover"

@@ -36,7 +36,7 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
         if (userId != null && !userId.trim().isEmpty() && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
                 List<GrantedAuthority> authorities = (role != null && !role.trim().isEmpty())
-                        ? Collections.singletonList(new SimpleGrantedAuthority(role))
+                        ? Collections.singletonList(new SimpleGrantedAuthority(role.startsWith("ROLE_") ? role : "ROLE_" + role))
                         : Collections.emptyList();
 
                 // Tạo đối tượng Authentication với principal là userId

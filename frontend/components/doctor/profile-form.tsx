@@ -10,11 +10,11 @@ import type { DoctorProfileFormData } from "@/types/doctor"
 
 const profileSchema = z.object({
   fullName: z.string().min(2, "Họ tên không được để trống"),
-  specialty: z.string().min(2, "Chuyên khoa không được để trống"),
+  specialtyId: z.number(),
+  specialtyName: z.string().optional(),
   degree: z.string().min(2, "Bằng cấp không được để trống"),
-  workEmail: z.string().email("Email không hợp lệ"),
-  phone: z.string().min(9, "Số điện thoại không hợp lệ"),
-  bio: z.string(),
+  experienceYears: z.number().min(0, "Số năm kinh nghiệm không hợp lệ"),
+  price: z.number().min(0, "Giá khám không hợp lệ"),
 })
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -84,10 +84,10 @@ export function ProfileForm({ defaultValues, onSubmit }: ProfileFormProps) {
           <div className="space-y-1.5">
             <label className="text-xs text-on-surface-variant uppercase tracking-wider font-bold">Chuyên khoa</label>
             <input
-              {...register("specialty")}
-              className="w-full bg-surface border border-outline-variant rounded-xl p-4 text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+              {...register("specialtyName")}
+              disabled
+              className="w-full bg-surface-container border border-outline-variant rounded-xl p-4 text-on-surface-variant cursor-not-allowed outline-none transition-all"
             />
-            {errors.specialty && <p className="text-error text-xs">{errors.specialty.message}</p>}
           </div>
 
           {/* Degree */}
@@ -103,26 +103,27 @@ export function ProfileForm({ defaultValues, onSubmit }: ProfileFormProps) {
             {errors.degree && <p className="text-error text-xs">{errors.degree.message}</p>}
           </div>
 
-          {/* Email */}
+          {/* Experience Years */}
           <div className="space-y-1.5">
-            <label className="text-xs text-on-surface-variant uppercase tracking-wider font-bold">Email công việc</label>
+            <label className="text-xs text-on-surface-variant uppercase tracking-wider font-bold">Số năm kinh nghiệm</label>
             <input
-              {...register("workEmail")}
-              type="email"
+              {...register("experienceYears", { valueAsNumber: true })}
+              type="number"
               className="w-full bg-surface border border-outline-variant rounded-xl p-4 text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
             />
-            {errors.workEmail && <p className="text-error text-xs">{errors.workEmail.message}</p>}
+            {errors.experienceYears && <p className="text-error text-xs">{errors.experienceYears.message}</p>}
           </div>
-        </div>
 
-        {/* Bio */}
-        <div className="space-y-1.5">
-          <label className="text-xs text-on-surface-variant uppercase tracking-wider font-bold">Giới thiệu ngắn</label>
-          <textarea
-            {...register("bio")}
-            rows={4}
-            className="w-full bg-surface border border-outline-variant rounded-xl p-4 text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none leading-relaxed"
-          />
+          {/* Price */}
+          <div className="space-y-1.5">
+            <label className="text-xs text-on-surface-variant uppercase tracking-wider font-bold">Giá khám (VND)</label>
+            <input
+              {...register("price", { valueAsNumber: true })}
+              type="number"
+              className="w-full bg-surface border border-outline-variant rounded-xl p-4 text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+            />
+            {errors.price && <p className="text-error text-xs">{errors.price.message}</p>}
+          </div>
         </div>
       </form>
     </div>
