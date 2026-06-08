@@ -46,7 +46,9 @@ function PasswordChangeCard() {
       await doctorProfileService.changePassword(data);
       toast.success("Đổi mật khẩu thành công!");
     } catch (error: any) {
-      toast.error("Lỗi đổi mật khẩu: " + (error.response?.data?.message || error.message));
+      toast.error(
+        "Lỗi đổi mật khẩu: " + (error.response?.data?.message || error.message),
+      );
     }
   };
 
@@ -128,7 +130,8 @@ export default function DoctorProfilePage() {
 
   useEffect(() => {
     if (user?.id) {
-      doctorProfileService.getProfile(user.id.toString())
+      doctorProfileService
+        .getProfile(user.id.toString())
         .then((res) => {
           if (res.data) {
             setProfile({
@@ -141,7 +144,7 @@ export default function DoctorProfilePage() {
             });
           }
         })
-        .catch(err => console.error("Failed to load profile", err))
+        .catch((err) => console.error("Failed to load profile", err))
         .finally(() => setIsLoading(false));
     }
   }, [user]);
@@ -159,12 +162,18 @@ export default function DoctorProfilePage() {
       } as any);
       toast.success("Cập nhật hồ sơ thành công!");
     } catch (error: any) {
-      toast.error("Lỗi cập nhật: " + (error.response?.data?.message || error.message));
+      toast.error(
+        "Lỗi cập nhật: " + (error.response?.data?.message || error.message),
+      );
     }
   };
 
   if (isLoading) {
-    return <div className="p-12 text-center text-on-surface-variant">Đang tải hồ sơ...</div>;
+    return (
+      <div className="p-12 text-center text-on-surface-variant">
+        Đang tải hồ sơ...
+      </div>
+    );
   }
 
   return (
@@ -190,10 +199,13 @@ export default function DoctorProfilePage() {
 
           {/* Info */}
           <div className="flex-1 pb-4">
-            <h1 className="text-4xl font-bold">Bác sĩ {profile?.fullName || "Chưa cập nhật"}</h1>
+            <h1 className="text-4xl font-bold">
+              Bác sĩ {profile?.fullName || "Chưa cập nhật"}
+            </h1>
             <p className="text-lg opacity-90 flex items-center gap-2 mt-1">
               <Heart className="w-5 h-5" />
-              Chuyên khoa {profile?.specialtyName || "Chưa cập nhật"} • {profile?.experienceYears || 0} năm kinh nghiệm
+              Chuyên khoa {profile?.specialtyName || "Chưa cập nhật"} •{" "}
+              {profile?.experienceYears || 0} năm kinh nghiệm
             </p>
           </div>
         </div>
@@ -204,7 +216,12 @@ export default function DoctorProfilePage() {
         <div className="max-w-7xl mx-auto grid grid-cols-12 gap-6">
           {/* Left: Profile + Notifications */}
           <div className="col-span-12 lg:col-span-8 space-y-6">
-            {profile && <ProfileForm defaultValues={profile} onSubmit={handleUpdateProfile} />}
+            {profile && (
+              <ProfileForm
+                defaultValues={profile}
+                onSubmit={handleUpdateProfile}
+              />
+            )}
           </div>
 
           {/* Right: Password + Account Status + Logout */}
