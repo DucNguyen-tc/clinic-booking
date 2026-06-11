@@ -2,7 +2,9 @@
 // Appointment Types
 // ========================================
 
-export type AppointmentStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+// Backend enum: PENDING_PAYMENT, CONFIRMED, COMPLETED, CANCELLED
+// UI chỉ hiển thị CONFIRMED và COMPLETED
+export type AppointmentStatus = "PENDING_PAYMENT" | "CONFIRMED" | "COMPLETED" | "CANCELLED"
 
 export type SessionType = "all" | "morning" | "afternoon"
 
@@ -19,14 +21,27 @@ export interface Patient {
 }
 
 export interface Appointment {
-  id: string
+  id: number
   orderNumber: number
   patient: Patient
-  timeRange: string       // "08:00 - 08:15"
+  timeRange: string       // "08:00 - 08:30"
   sessionType: SessionType
   status: AppointmentStatus
   reason?: string          // "Khám định kỳ", "Đau thắt ngực"
   roomNumber?: string      // "UT1", "Phòng 402"
   doctorId?: string
   date: string             // ISO date string "2024-05-24"
+  specialtyId?: number
+}
+
+// Raw response từ backend clinic_appointment
+export interface AppointmentApiResponse {
+  id: number
+  patientId: string
+  doctorId: string
+  specialtyId: number
+  appointmentDate: string    // "2024-05-24"
+  slotTime: string           // "08:00:00"
+  status: AppointmentStatus
+  createdAt: string
 }

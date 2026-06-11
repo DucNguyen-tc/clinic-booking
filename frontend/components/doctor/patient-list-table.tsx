@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Search, CalendarDays, Filter, FileText, Send, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, CalendarDays, Filter, FileText, ChevronLeft, ChevronRight } from "lucide-react"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import type { PatientRecord, PatientFilter, PatientGender } from "@/types/patient"
 
@@ -100,12 +101,13 @@ function PatientRow({ patient, index }: { patient: PatientRecord; index: number 
       </td>
       <td className="px-6 py-4">
         <div className="flex justify-center gap-2">
-          <button className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Xem hồ sơ">
+          <Link
+            href={`/doctor/patients/${patient.id}`}
+            className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors inline-block"
+            title="Xem hồ sơ"
+          >
             <FileText className="w-4 h-4" />
-          </button>
-          <button className="p-2 text-secondary hover:bg-secondary/10 rounded-lg transition-colors" title="Gửi nhắc lịch">
-            <Send className="w-4 h-4" />
-          </button>
+          </Link>
         </div>
       </td>
     </tr>
@@ -198,6 +200,7 @@ export function PatientListTable({ patients, stats }: PatientListTableProps) {
     searchQuery: "",
     gender: "all",
     status: "all",
+    dateFrom: "",
   })
   const [page, setPage] = useState(1)
 
@@ -210,6 +213,9 @@ export function PatientListTable({ patients, stats }: PatientListTableProps) {
       }
       if (filter.gender !== "all" && p.gender !== filter.gender) return false
       if (filter.status !== "all" && p.status !== filter.status) return false
+      if (filter.dateFrom) {
+        if (!p.visitDates || !p.visitDates.includes(filter.dateFrom)) return false
+      }
       return true
     })
   }, [patients, filter])

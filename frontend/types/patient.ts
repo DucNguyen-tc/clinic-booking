@@ -19,6 +19,7 @@ export interface PatientRecord {
   totalVisits: number
   status: "active" | "inactive"
   address?: string
+  visitDates: string[]
 }
 
 export interface PatientFilter {

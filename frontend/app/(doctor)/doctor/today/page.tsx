@@ -1,75 +1,85 @@
 "use client"
 
-import { useState } from "react"
-import { CalendarDays, RefreshCw } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { CalendarDays, RefreshCw, Loader2 } from "lucide-react"
 import { AppointmentTable } from "@/components/doctor/appointment-table"
 import { cn } from "@/lib/utils"
-import type { Appointment, SessionType } from "@/types/appointment"
+import { appointmentService, type PatientApiResponse } from "@/services/appointment.service"
+import type { Appointment, AppointmentApiResponse, SessionType, Patient } from "@/types/appointment"
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-const MOCK_APPOINTMENTS: Appointment[] = [
-  {
-    id: "BN-00001",
-    orderNumber: 1,
-    patient: { id: "p1", name: "Nguyễn Văn A", age: 30, gender: "male", initials: "NA" },
-    timeRange: "08:00 - 08:15",
-    sessionType: "morning",
-    status: "PENDING",
-    reason: "Khám định kỳ",
-    date: "2024-05-24",
-  },
-  {
-    id: "BN-00002",
-    orderNumber: 2,
-    patient: { id: "p2", name: "Trần Thị Bình", age: 45, gender: "female", initials: "TB" },
-    timeRange: "08:15 - 08:30",
-    sessionType: "morning",
-    status: "IN_PROGRESS",
-    reason: "Đau thắt ngực",
-    date: "2024-05-24",
-  },
-  {
-    id: "BN-00003",
-    orderNumber: 3,
-    patient: { id: "p3", name: "Lê Văn Cường", age: 28, gender: "male", initials: "LC" },
-    timeRange: "08:30 - 08:45",
-    sessionType: "morning",
-    status: "COMPLETED",
-    reason: "Kiểm tra xét nghiệm",
-    date: "2024-05-24",
-  },
-  {
-    id: "BN-00004",
-    orderNumber: 4,
-    patient: { id: "p4", name: "Phạm Minh Hoàng", age: 52, gender: "male", initials: "PH" },
-    timeRange: "08:45 - 09:00",
-    sessionType: "morning",
-    status: "CANCELLED",
-    reason: "Khám tổng quát",
-    date: "2024-05-24",
-  },
-  {
-    id: "BN-00005",
-    orderNumber: 5,
-    patient: { id: "p5", name: "Nguyễn Thị Lan", age: 38, gender: "female", initials: "NL" },
-    timeRange: "13:00 - 13:15",
-    sessionType: "afternoon",
-    status: "PENDING",
-    reason: "Tái khám",
-    date: "2024-05-24",
-  },
-  {
-    id: "BN-00006",
-    orderNumber: 6,
-    patient: { id: "p6", name: "Võ Đình Tuấn", age: 60, gender: "male", initials: "VT" },
-    timeRange: "13:15 - 13:30",
-    sessionType: "afternoon",
-    status: "PENDING",
-    reason: "Đau đầu, chóng mặt",
-    date: "2024-05-24",
-  },
-]
+/** Lấy ngày hôm nay theo format YYYY-MM-DD */
+function getTodayDate(): string {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, "0")
+  const d = String(now.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
+/** Format ngày hiển thị: "Thứ Hai, 09 Tháng 6, 2026" */
+function formatDisplayDate(dateStr: string): string {
+  const date = new Date(dateStr + "T00:00:00")
+  const days = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"]
+  const dayName = days[date.getDay()]
+  const day = String(date.getDate()).padStart(2, "0")
+  const month = date.getMonth() + 1
+  const year = date.getFullYear()
+  return `${dayName}, ${day} Tháng ${month}, ${year}`
+}
+
+/** Tính sessionType từ slotTime ("08:00:00" → "morning", "14:00:00" → "afternoon") */
+function getSessionType(slotTime: string): "morning" | "afternoon" {
+  const hour = parseInt(slotTime.split(":")[0], 10)
+  return hour < 12 ? "morning" : "afternoon"
+}
+
+/** Tính timeRange từ slotTime (mặc định 30 phút) */
+function computeTimeRange(slotTime: string): string {
+  const parts = slotTime.split(":")
+  const h = parseInt(parts[0], 10)
+  const m = parseInt(parts[1], 10)
+  const start = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+  const totalEndMin = h * 60 + m + 30
+  const endH = Math.floor(totalEndMin / 60)
+  const endM = totalEndMin % 60
+  const end = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`
+  return `${start} - ${end}`
+}
+
+/** Tính tuổi từ ngày sinh */
+function calculateAge(dob: string | null): number {
+  if (!dob) return 0
+  const birth = new Date(dob)
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const monthDiff = today.getMonth() - birth.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--
+  }
+  return age
+}
+
+/** Tạo initials từ tên ("Nguyễn Văn A" → "NA") */
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 0) return "?"
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? "?"
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+/** Map gender từ backend (MALE/FEMALE/OTHER) → frontend (male/female/other) */
+function mapGender(gender: string | null): "male" | "female" | "other" {
+  if (!gender) return "other"
+  switch (gender.toUpperCase()) {
+    case "MALE": return "male"
+    case "FEMALE": return "female"
+    default: return "other"
+  }
+}
+
+// ── Session tabs ──────────────────────────────────────────────────────────────
 
 const SESSION_TABS: { label: string; value: SessionType }[] = [
   { label: "Tất cả", value: "all" },
@@ -81,17 +91,108 @@ const SESSION_TABS: { label: string; value: SessionType }[] = [
 
 export default function TodayAppointmentsPage() {
   const [session, setSession] = useState<SessionType>("all")
-  const [date, setDate] = useState("2024-05-24")
+  const [date, setDate] = useState(getTodayDate())
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const filtered = MOCK_APPOINTMENTS.filter(
+  /**
+   * Fetch appointments từ API và enrich với thông tin patient
+   */
+  const fetchAppointments = useCallback(async () => {
+    try {
+      setError(null)
+
+      // 1. Lấy danh sách appointments từ clinic_appointment service
+      const rawAppointments: AppointmentApiResponse[] = await appointmentService.getAppointments()
+
+      // 2. Lọc theo ngày đã chọn + chỉ hiển thị CONFIRMED và COMPLETED
+      const filteredByDate = rawAppointments.filter(
+        (a) =>
+          a.appointmentDate === date &&
+          (a.status === "CONFIRMED" || a.status === "COMPLETED")
+      )
+
+      // 3. Sắp xếp theo slotTime
+      filteredByDate.sort((a, b) => a.slotTime.localeCompare(b.slotTime))
+
+      // 4. Fetch thông tin patient cho từng appointment (song song)
+      const patientIds = [...new Set(filteredByDate.map((a) => a.patientId))]
+      const patientMap = new Map<string, PatientApiResponse>()
+
+      const patientResults = await Promise.allSettled(
+        patientIds.map((id) => appointmentService.getPatientInfo(id))
+      )
+
+      patientResults.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          patientMap.set(patientIds[index], result.value)
+        }
+      })
+
+      // 5. Map thành Appointment[] cho UI
+      const mapped: Appointment[] = filteredByDate.map((raw, index) => {
+        const patientInfo = patientMap.get(raw.patientId)
+
+        const patient: Patient = patientInfo
+          ? {
+              id: patientInfo.userId,
+              name: patientInfo.fullName,
+              age: calculateAge(patientInfo.dob),
+              gender: mapGender(patientInfo.gender),
+              initials: getInitials(patientInfo.fullName),
+            }
+          : {
+              id: raw.patientId,
+              name: `Bệnh nhân #${raw.patientId.slice(0, 8)}`,
+              age: 0,
+              gender: "other" as const,
+              initials: "??",
+            }
+
+        return {
+          id: raw.id,
+          orderNumber: index + 1,
+          patient,
+          timeRange: computeTimeRange(raw.slotTime),
+          sessionType: getSessionType(raw.slotTime),
+          status: raw.status,
+          date: raw.appointmentDate,
+          doctorId: raw.doctorId,
+          specialtyId: raw.specialtyId,
+        }
+      })
+
+      setAppointments(mapped)
+    } catch (err: any) {
+      console.error("Failed to fetch appointments:", err)
+      setError(err?.response?.data?.message || err?.message || "Không thể tải danh sách lịch khám")
+    }
+  }, [date])
+
+  // Fetch khi component mount hoặc khi date thay đổi
+  useEffect(() => {
+    setLoading(true)
+    fetchAppointments().finally(() => setLoading(false))
+  }, [fetchAppointments])
+
+  // Refresh handler
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await fetchAppointments()
+    setRefreshing(false)
+  }
+
+  // Lọc theo session
+  const filtered = appointments.filter(
     (a) => session === "all" || a.sessionType === session
   )
 
   const counts = {
-    total: MOCK_APPOINTMENTS.length,
-    waiting: MOCK_APPOINTMENTS.filter((a) => a.status === "PENDING").length,
-    inProgress: MOCK_APPOINTMENTS.filter((a) => a.status === "IN_PROGRESS").length,
-    completed: MOCK_APPOINTMENTS.filter((a) => a.status === "COMPLETED").length,
+    total: appointments.length,
+    confirmed: appointments.filter((a) => a.status === "CONFIRMED").length,
+    completed: appointments.filter((a) => a.status === "COMPLETED").length,
   }
 
   return (
@@ -101,8 +202,8 @@ export default function TodayAppointmentsPage() {
         <div className="relative z-10">
           <h1 className="font-bold text-3xl mb-1">Lịch Khám Hôm Nay</h1>
           <p className="text-lg opacity-90">
-            Thứ Hai, 24 Tháng 5, 2024 •{" "}
-            <span className="font-bold">Bạn có {counts.waiting} lịch hẹn đang chờ.</span>
+            {formatDisplayDate(date)} •{" "}
+            <span className="font-bold">Bạn có {counts.confirmed} lịch hẹn đã xác nhận.</span>
           </p>
         </div>
         <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-10 hidden lg:block">
@@ -152,21 +253,44 @@ export default function TodayAppointmentsPage() {
           <div className="flex items-center gap-4 text-sm text-on-surface-variant">
             <span>Tổng: <strong className="text-on-surface">{filtered.length}</strong></span>
             <span className="w-px h-4 bg-outline-variant" />
-            <span>Chờ: <strong className="text-primary">{counts.waiting}</strong></span>
+            <span>Đã xác nhận: <strong className="text-primary">{counts.confirmed}</strong></span>
             <span className="w-px h-4 bg-outline-variant" />
-            <span>Đang khám: <strong className="text-secondary">{counts.inProgress}</strong></span>
-            <span className="w-px h-4 bg-outline-variant" />
-            <span>Xong: <strong className="text-tertiary">{counts.completed}</strong></span>
+            <span>Đã khám: <strong className="text-tertiary">{counts.completed}</strong></span>
           </div>
-          <button className="p-2 text-primary hover:bg-primary-fixed rounded-full transition-all">
-            <RefreshCw className="w-4 h-4" />
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="p-2 text-primary hover:bg-primary-fixed rounded-full transition-all disabled:opacity-50"
+          >
+            <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
           </button>
         </div>
       </section>
 
       {/* Appointment List */}
       <section>
-        <AppointmentTable appointments={filtered} />
+        {loading ? (
+          <div className="text-center py-20 text-on-surface-variant">
+            <Loader2 className="w-10 h-10 mx-auto mb-4 animate-spin text-primary" />
+            <p className="font-semibold text-lg">Đang tải lịch khám...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-20 text-on-surface-variant">
+            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-error-container flex items-center justify-center">
+              <span className="text-error text-xl">!</span>
+            </div>
+            <p className="font-semibold text-lg text-error">Có lỗi xảy ra</p>
+            <p className="text-sm mt-1 opacity-70">{error}</p>
+            <button
+              onClick={handleRefresh}
+              className="mt-4 px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-semibold hover:bg-primary/90 transition-all"
+            >
+              Thử lại
+            </button>
+          </div>
+        ) : (
+          <AppointmentTable appointments={filtered} />
+        )}
       </section>
     </div>
   )

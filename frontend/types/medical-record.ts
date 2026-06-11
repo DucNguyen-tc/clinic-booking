@@ -23,8 +23,6 @@ export interface MedicalRecord {
   id?: string
   appointmentId: string
   primaryDiagnosis: string
-  icd10Code?: string
-  clinicalSymptoms?: string
   doctorAdvice?: string
   prescriptions: PrescriptionItem[]
   attachmentUrls?: string[]
@@ -45,8 +43,6 @@ export const prescriptionItemSchema = z.object({
 
 export const medicalRecordSchema = z.object({
   primaryDiagnosis: z.string().min(2, "Chẩn đoán chính không được để trống"),
-  icd10Code: z.string().optional(),
-  clinicalSymptoms: z.string().optional(),
   doctorAdvice: z.string().optional(),
   prescriptions: z.array(prescriptionItemSchema),
 })

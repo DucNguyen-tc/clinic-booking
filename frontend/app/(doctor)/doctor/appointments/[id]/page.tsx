@@ -1,78 +1,113 @@
-import { ChevronLeft } from "lucide-react"
-import Link from "next/link"
-import { PatientSummaryCard } from "@/components/doctor/patient-summary-card"
-import { MedicalRecordForm } from "@/components/doctor/medical-record-form"
-import type { Appointment } from "@/types/appointment"
-import type { MedicalHistoryEntry } from "@/types/medical-record"
+"use client";
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { ChevronLeft, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { PatientSummaryCard } from "@/components/doctor/patient-summary-card";
+import { MedicalRecordForm } from "@/components/doctor/medical-record-form";
+import type { Appointment } from "@/types/appointment";
+import type { MedicalHistoryEntry } from "@/types/medical-record";
+import { appointmentService } from "@/services/appointment.service";
+import { medicalRecordService } from "@/services/medical-record.service";
 
-const MOCK_APPOINTMENTS: Record<string, Appointment> = {
-  "BN-00001": {
-    id: "BN-00001",
-    orderNumber: 1,
-    patient: {
-      id: "p1",
-      name: "Nguyễn Văn Hùng",
-      age: 68,
-      gender: "male",
-      initials: "NH",
-      bloodType: "A+",
-      weight: 72,
-      bloodPressure: "145/95 mmHg",
-    },
-    timeRange: "08:00 - 08:15",
-    sessionType: "morning",
-    status: "PENDING",
-    reason: "Khám định kỳ - Tim mạch",
-    date: "2024-05-24",
-  },
-  "appt-1": {
-    id: "appt-1",
-    orderNumber: 1,
-    patient: {
-      id: "p-lh",
-      name: "Lê Hoàng Nam",
-      age: 28,
-      gender: "male",
-      initials: "LH",
-      bloodType: "O+",
-      weight: 65,
-    },
-    timeRange: "09:30 AM",
-    sessionType: "morning",
-    status: "PENDING",
-    reason: "Khám định kỳ",
-    date: "2024-05-24",
-  },
-}
+export default function AppointmentDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
 
-const MOCK_HISTORY: MedicalHistoryEntry[] = [
-  {
-    date: "15/02/2024",
-    department: "Nội khoa",
-    diagnosis: "Viêm phế quản cấp",
-    notes: "Bác sĩ: Trần Thu Hà. Điều trị ngoại trú 7 ngày.",
-  },
-  {
-    date: "10/11/2023",
-    department: "Tổng quát",
-    diagnosis: "Kiểm tra định kỳ",
-    notes: "Chỉ số mỡ máu hơi cao. Cần theo dõi chế độ ăn.",
-  },
-]
+  const [appointment, setAppointment] = useState<Appointment | null>(null);
+  const [history, setHistory] = useState<MedicalHistoryEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setIsLoading(true);
+        // 1. Fetch appointment detail
+        const apptData = await appointmentService.getAppointmentById(id);
 
-interface PageProps {
-  params: Promise<{ id: string }>
-}
+        // 2. Fetch patient profile
+        const patientData = await appointmentService.getPatientInfo(apptData.patientId);
 
-export default async function AppointmentDetailPage({ params }: PageProps) {
-  const { id } = await params
+        // 3. Fetch medical history
+        let historyData: any[] = [];
+        try {
+          historyData = await medicalRecordService.getRecordsByPatientId(apptData.patientId);
+        } catch (e) {
+          console.error(
+            "No medical history found or error fetching history:",
+            e,
+          );
+        }
 
-  // In production, fetch from API: GET /api/v1/appointments/:id
-  const appointment = MOCK_APPOINTMENTS[id] ?? MOCK_APPOINTMENTS["BN-00001"]
+        // Map API response to UI type
+        const dobDate = patientData.dob ? new Date(patientData.dob) : null;
+        const age = dobDate ? new Date().getFullYear() - dobDate.getFullYear() : 0;
+
+        const names = patientData.fullName?.trim().split(" ") || [""];
+        const initials =
+          names.length > 1
+            ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
+            : patientData.fullName?.substring(0, 2).toUpperCase() || "BN";
+
+        const mappedAppointment: Appointment = {
+          id: apptData.id,
+          orderNumber: apptData.id,
+          patient: {
+            id: patientData.userId,
+            name: patientData.fullName,
+            age: age,
+            gender: patientData.gender?.toLowerCase() === "male" ? "male" : (patientData.gender?.toLowerCase() === "female" ? "female" : "other"),
+            initials: initials,
+          },
+          timeRange: apptData.slotTime,
+          sessionType: "morning",
+          status: apptData.status,
+          date: apptData.appointmentDate,
+          reason: "Khám định kỳ",
+        };
+
+        const mappedHistory: MedicalHistoryEntry[] = historyData.map(
+          (record: any) => ({
+            date: record.createdAt ? new Date(record.createdAt).toLocaleDateString("vi-VN") : "Chưa có ngày",
+            department: "Phòng khám",
+            diagnosis: record.diagnosis || "Chưa có chẩn đoán",
+            notes: record.doctorNote || "Không có lời dặn",
+          }),
+        );
+
+        setAppointment(mappedAppointment);
+        setHistory(mappedHistory);
+      } catch (error) {
+        console.error("Error fetching appointment details:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    if (id) {
+      fetchData();
+    }
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="ml-3 text-on-surface-variant font-medium">
+          Đang tải thông tin bệnh nhân...
+        </span>
+      </div>
+    );
+  }
+
+  if (!appointment) {
+    return (
+      <div className="text-center py-20 text-on-surface-variant">
+        Không tìm thấy thông tin lịch hẹn.
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -89,7 +124,9 @@ export default async function AppointmentDetailPage({ params }: PageProps) {
         <nav className="text-sm text-on-surface-variant">
           <span>Lịch khám hôm nay</span>
           <span className="mx-2">/</span>
-          <span className="text-on-surface font-semibold">Chi tiết lịch hẹn</span>
+          <span className="text-on-surface font-semibold">
+            Chi tiết lịch hẹn
+          </span>
         </nav>
       </div>
 
@@ -101,7 +138,8 @@ export default async function AppointmentDetailPage({ params }: PageProps) {
             Chi Tiết Lịch Hẹn &amp; Tạo Bệnh Án
           </h1>
           <p className="text-sm text-on-surface-variant max-w-2xl">
-            Vui lòng cập nhật thông tin chẩn đoán, kết quả xét nghiệm và chỉ định đơn thuốc cho bệnh nhân sau khi thăm khám.
+            Vui lòng cập nhật thông tin chẩn đoán, kết quả xét nghiệm và chỉ
+            định đơn thuốc cho bệnh nhân sau khi thăm khám.
           </p>
         </div>
       </div>
@@ -110,17 +148,17 @@ export default async function AppointmentDetailPage({ params }: PageProps) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-12">
         {/* Left Column: Patient Info */}
         <div className="lg:col-span-4">
-          <PatientSummaryCard
-            appointment={appointment}
-            history={MOCK_HISTORY}
-          />
+          <PatientSummaryCard appointment={appointment} history={history} />
         </div>
 
         {/* Right Column: Medical Record Form */}
         <div className="lg:col-span-8">
-          <MedicalRecordForm appointmentId={appointment.id} />
+          <MedicalRecordForm
+            appointmentId={appointment.id}
+            patientId={appointment.patient.id}
+          />
         </div>
       </div>
     </div>
-  )
+  );
 }

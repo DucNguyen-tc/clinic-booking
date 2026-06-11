@@ -1,13 +1,52 @@
-"use client"
+"use client";
 
-import Image from "next/image"
-import { Search, Bell, HelpCircle, Settings } from "lucide-react"
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import { Search, Bell, HelpCircle, Settings } from "lucide-react";
+import { useAuthStore } from "@/store/auth-store";
+import { doctorProfileService } from "@/services/doctor.service";
 
 interface TopBarProps {
-  searchPlaceholder?: string
+  searchPlaceholder?: string;
 }
 
-export function DoctorTopBar({ searchPlaceholder = "Tìm kiếm bệnh nhân, bệnh án..." }: TopBarProps) {
+export function DoctorTopBar({
+  searchPlaceholder = "Tìm kiếm bệnh nhân, bệnh án...",
+}: TopBarProps) {
+  const { user } = useAuthStore();
+  const [profile, setProfile] = useState<{
+    fullName: string;
+    specialtyName: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (user?.id) {
+      doctorProfileService
+        .getProfile(user.id.toString())
+        .then((res) => {
+          if (res.data) {
+            setProfile({
+              fullName: res.data.fullName,
+              specialtyName: res.data.specialty?.name || "",
+            });
+          }
+        })
+        .catch((err) =>
+          console.error("Failed to load doctor profile in TopBar", err),
+        );
+    }
+  }, [user]);
+
+  const fullName = profile?.fullName || "Bác sĩ";
+  const specialtyName = profile?.specialtyName || "Chuyên khoa";
+
+  const initials = (() => {
+    if (!profile?.fullName) return "DR";
+    const parts = profile.fullName.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? "DR";
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  })();
+
   return (
     <header className="flex justify-between items-center ml-64 px-6 h-16 w-[calc(100%-16rem)] bg-surface border-b border-outline-variant shadow-sm fixed top-0 z-40">
       {/* Search */}
@@ -44,21 +83,27 @@ export function DoctorTopBar({ searchPlaceholder = "Tìm kiếm bệnh nhân, b�
               fill
               className="object-cover"
               onError={(e) => {
-                const target = e.target as HTMLImageElement
-                target.style.display = "none"
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
               }}
             />
             {/* Fallback initials */}
             <div className="w-full h-full bg-secondary-container flex items-center justify-center">
-              <span className="text-xs font-bold text-on-secondary-container">AN</span>
+              <span className="text-xs font-bold text-on-secondary-container">
+                {initials}
+              </span>
             </div>
           </div>
           <div className="hidden lg:block">
-            <p className="font-bold text-sm text-on-surface leading-none">BS. Nguyễn Văn An</p>
-            <p className="text-xs text-on-surface-variant opacity-70 mt-0.5">Chuyên khoa Tim mạch</p>
+            <p className="font-bold text-sm text-on-surface leading-none">
+              BS. {fullName}
+            </p>
+            <p className="text-xs text-on-surface-variant opacity-70 mt-0.5">
+              Chuyên khoa {specialtyName}
+            </p>
           </div>
         </div>
       </div>
     </header>
-  )
+  );
 }

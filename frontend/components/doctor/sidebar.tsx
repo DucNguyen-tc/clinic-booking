@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -12,11 +12,11 @@ import {
   Plus,
   Stethoscope,
   LogOut,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
-import { useAuthStore } from "@/store/auth-store"
-import { authService } from "@/services/auth.service"
-import { useRouter } from "next/navigation"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth-store";
+import { authService } from "@/services/auth.service";
+import { useRouter } from "next/navigation";
 
 const NAV_ITEMS = [
   {
@@ -29,11 +29,6 @@ const NAV_ITEMS = [
     label: "Lịch khám hôm nay",
     href: "/doctor/today",
     icon: CalendarDays,
-  },
-  {
-    label: "Bệnh án",
-    href: "/doctor/appointments",
-    icon: FileText,
   },
   {
     label: "Lịch làm việc",
@@ -50,28 +45,28 @@ const NAV_ITEMS = [
     href: "/doctor/profile",
     icon: User,
   },
-]
+];
 
 export function DoctorSidebar() {
-  const pathname = usePathname()
-  const router = useRouter()
-  const clearAuth = useAuthStore((state) => state.logout)
+  const pathname = usePathname();
+  const router = useRouter();
+  const clearAuth = useAuthStore((state) => state.logout);
 
   const isActive = (href: string, exact?: boolean) => {
-    if (exact) return pathname === href
-    return pathname.startsWith(href)
-  }
+    if (exact) return pathname === href;
+    return pathname.startsWith(href);
+  };
 
   const handleLogout = async () => {
     try {
-      await authService.logout()
+      await authService.logout();
     } catch (error) {
-      console.error("Logout API failed:", error)
+      console.error("Logout API failed:", error);
     } finally {
-      clearAuth()
-      router.replace("/login")
+      clearAuth();
+      router.replace("/login");
     }
-  }
+  };
 
   return (
     <aside className="h-screen w-64 fixed left-0 top-0 bg-surface border-r border-outline-variant flex flex-col z-50 shadow-sm">
@@ -82,8 +77,12 @@ export function DoctorSidebar() {
             <Stethoscope className="w-5 h-5 text-on-primary" />
           </div>
           <div>
-            <span className="font-bold text-xl text-primary tracking-tight leading-none block">MediBook</span>
-            <span className="text-xs text-on-surface-variant opacity-70 font-medium leading-none mt-0.5 block">Doctor Portal</span>
+            <span className="font-bold text-xl text-primary tracking-tight leading-none block">
+              MediBook
+            </span>
+            <span className="text-xs text-on-surface-variant opacity-70 font-medium leading-none mt-0.5 block">
+              Doctor Portal
+            </span>
           </div>
         </div>
       </div>
@@ -91,8 +90,8 @@ export function DoctorSidebar() {
       {/* Navigation */}
       <nav className="flex-grow px-3 space-y-1 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
-          const active = isActive(item.href, item.exact)
-          const Icon = item.icon
+          const active = isActive(item.href, item.exact);
+          const Icon = item.icon;
           return (
             <Link
               key={item.href}
@@ -101,28 +100,23 @@ export function DoctorSidebar() {
                 "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200",
                 active
                   ? "bg-secondary-container text-on-secondary-container"
-                  : "text-on-surface-variant hover:text-primary hover:bg-surface-container-high"
+                  : "text-on-surface-variant hover:text-primary hover:bg-surface-container-high",
               )}
             >
               <Icon
                 className={cn(
                   "w-5 h-5 flex-shrink-0",
-                  active ? "text-on-secondary-container" : "text-current"
+                  active ? "text-on-secondary-container" : "text-current",
                 )}
               />
               <span>{item.label}</span>
             </Link>
-          )
+          );
         })}
       </nav>
 
       {/* CTA & Logout Footer */}
       <div className="p-4 border-t border-outline-variant/30 flex flex-col gap-3">
-        <button className="w-full py-3 bg-primary text-on-primary rounded-full font-bold flex items-center justify-center gap-2 transition-all hover:bg-primary/90 active:scale-95 shadow-md text-sm">
-          <Plus className="w-4 h-4" />
-          <span>Bệnh nhân mới</span>
-        </button>
-
         <button
           onClick={handleLogout}
           className="w-full py-3 rounded-full font-semibold flex items-center justify-center gap-2 transition-all duration-200 text-error hover:bg-error-container/20 active:scale-95 text-sm"
@@ -132,5 +126,5 @@ export function DoctorSidebar() {
         </button>
       </div>
     </aside>
-  )
+  );
 }

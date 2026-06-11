@@ -32,13 +32,13 @@ const MOCK_SHIFTS: WeeklyShift[] = [
 
 const NEXT_UP_PATIENTS: Pick<Appointment, "id" | "patient" | "timeRange" | "roomNumber">[] = [
   {
-    id: "appt-1",
+    id: 1,
     patient: { id: "p1", name: "Lê Hoàng Nam", age: 28, gender: "male", initials: "LH" },
     timeRange: "09:30 AM",
     roomNumber: "UT1",
   },
   {
-    id: "appt-2",
+    id: 2,
     patient: { id: "p2", name: "Ngô Minh Tú", age: 45, gender: "male", initials: "MT" },
     timeRange: "09:45 AM",
     roomNumber: "UT2",
