@@ -14,4 +14,5 @@ public interface AuthService {
     String refreshToken(String refreshToken);
     UserResponse getMe();
     void changePassword(String userId, ChangePasswordRequest request);
+    UserResponse getUserById(String userId);
 }

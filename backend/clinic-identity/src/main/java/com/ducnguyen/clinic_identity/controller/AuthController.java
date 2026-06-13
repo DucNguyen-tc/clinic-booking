@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import com.ducnguyen.clinic_identity.dto.ApiResponse;
 import com.ducnguyen.clinic_identity.dto.request.AuthRequest;
@@ -107,6 +108,12 @@ public class AuthController {
     @GetMapping("/get-me")
     public ResponseEntity<ApiResponse<UserResponse>> getMe() {
         UserResponse response = authService.getMe();
+        return ResponseEntity.ok(ApiResponse.success(response, "Get user info successfully"));
+    }
+
+    @GetMapping("/internal/users/{id}")
+    public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable String id) {
+        UserResponse response = authService.getUserById(id);
         return ResponseEntity.ok(ApiResponse.success(response, "Get user info successfully"));
     }
 

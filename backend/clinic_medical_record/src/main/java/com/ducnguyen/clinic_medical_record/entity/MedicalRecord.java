@@ -26,8 +26,6 @@ public class MedicalRecord {
     @Column(name = "doctor_id", nullable = false, length = 36)
     private String doctorId;
 
-    @Column(name = "result_url")
-    private String resultUrl;
 
     @Column(name = "diagnosis", columnDefinition = "TEXT")
     private String diagnosis;

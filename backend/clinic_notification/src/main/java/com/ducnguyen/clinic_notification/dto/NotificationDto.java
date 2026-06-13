@@ -65,6 +65,6 @@ public class NotificationDto {
         @NotNull(message = "appointmentId không được để trống")
         private Long appointmentId;
 
-        private String resultUrl;
+
     }
 }

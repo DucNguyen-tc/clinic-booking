@@ -16,5 +16,4 @@ public class CreateMedicalRecordRequest {
     private String diagnosis;
     private String prescription;
     private String doctorNote;
-    private String resultUrl;
 }

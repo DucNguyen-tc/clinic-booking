@@ -24,6 +24,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
+import org.springframework.http.HttpMethod;
+
+
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -38,6 +42,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/api-docs/**").permitAll()
                 .anyRequest().authenticated()
             )
@@ -45,6 +50,8 @@ public class SecurityConfig {
 
         return http.build();
     }
+
+
 
     @Slf4j
     @Component
@@ -54,38 +61,60 @@ public class SecurityConfig {
         private final JwtUtil jwtUtil;
 
         @Override
+        protected boolean shouldNotFilter(HttpServletRequest request) {
+            return "OPTIONS".equalsIgnoreCase(request.getMethod());
+        }
+
+        @Override
         protected void doFilterInternal(HttpServletRequest request,
                                         HttpServletResponse response,
                                         FilterChain filterChain) throws ServletException, IOException {
-            String authHeader = request.getHeader("Authorization");
 
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                filterChain.doFilter(request, response);
-                return;
+            // 1. Thử xác thực qua JWT token (Authorization header)
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                String token = authHeader.substring(7);
+                try {
+                    if (jwtUtil.isTokenValid(token)) {
+                        Claims claims = jwtUtil.extractAllClaims(token);
+                        String userId = claims.getSubject();
+                        String role = claims.get("role", String.class);
+
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        userId,
+                                        null,
+                                        List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                                );
+
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        log.debug("JWT auth thành công cho userId={}, role={}", userId, role);
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                } catch (Exception e) {
+                    log.warn("JWT không hợp lệ: {}", e.getMessage());
+                }
             }
 
-            String token = authHeader.substring(7);
+            // 2. Fallback: Xác thực qua X-User-Id / X-User-Role header từ API Gateway
+            String gatewayUserId = request.getHeader("X-User-Id");
+            String gatewayRole = request.getHeader("X-User-Role");
 
-            try {
-                if (jwtUtil.isTokenValid(token)) {
-                    Claims claims = jwtUtil.extractAllClaims(token);
-                    String userId = claims.getSubject();
-                    String role = claims.get("role", String.class);
+            if (gatewayUserId != null && gatewayRole != null) {
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                gatewayUserId,
+                                null,
+                                List.of(new SimpleGrantedAuthority("ROLE_" + gatewayRole))
+                        );
 
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    userId,
-                                    null,
-                                    List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                            );
-
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                }
-            } catch (Exception e) {
-                log.warn("JWT không hợp lệ: {}", e.getMessage());
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                log.debug("Gateway header auth thành công cho userId={}, role={}", gatewayUserId, gatewayRole);
             }
 
             filterChain.doFilter(request, response);
         }
     }
 }
+
