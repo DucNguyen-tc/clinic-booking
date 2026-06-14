@@ -15,7 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
+
 
 import java.util.List;
 
@@ -27,17 +27,6 @@ import java.util.List;
 public class MedicalRecordController {
 
     private final MedicalRecordService medicalRecordService;
-
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('DOCTOR')")
-    @Operation(summary = "Upload file kết quả khám lên MinIO")
-    public ResponseEntity<ApiResponse<String>> uploadFile(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam("appointmentId") Long appointmentId
-    ) {
-        String url = medicalRecordService.uploadResultFile(file, appointmentId);
-        return ResponseEntity.ok(ApiResponse.ok("Upload thành công", url));
-    }
 
     @PostMapping
     @PreAuthorize("hasRole('DOCTOR')")
@@ -87,5 +76,14 @@ public class MedicalRecordController {
         return ResponseEntity.ok(ApiResponse.ok(
                 medicalRecordService.getRecordByAppointmentId(appointmentId)
         ));
+    }
+
+    @GetMapping("/patient/{patientId}")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @Operation(summary = "Lấy lịch sử bệnh án theo patientId cho bác sĩ")
+    public ResponseEntity<ApiResponse<List<MedicalRecordResponse>>> getRecordsByPatientId(
+            @PathVariable String patientId
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(medicalRecordService.getMyRecords(patientId)));
     }
 }

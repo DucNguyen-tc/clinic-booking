@@ -26,6 +26,10 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+import org.springframework.http.HttpMethod;
+
+
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -40,6 +44,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/api-docs/**").permitAll()
                 .anyRequest().authenticated()
             )
@@ -48,15 +53,21 @@ public class SecurityConfig {
         return http.build();
     }
 
+
+
     @Slf4j
     @Component
     public static class HeaderAuthFilter extends OncePerRequestFilter {
 
         @Override
+        protected boolean shouldNotFilter(HttpServletRequest request) {
+            return "OPTIONS".equalsIgnoreCase(request.getMethod());
+        }
+
+        @Override
         protected void doFilterInternal(HttpServletRequest request,
                                         HttpServletResponse response,
                                         FilterChain filterChain) throws ServletException, IOException {
-            
             String userId = request.getHeader("X-User-Id");
             String role = request.getHeader("X-User-Role");
 
@@ -83,3 +94,4 @@ public class SecurityConfig {
         }
     }
 }
+

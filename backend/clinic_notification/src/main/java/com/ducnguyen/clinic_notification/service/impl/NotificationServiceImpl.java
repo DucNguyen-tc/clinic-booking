@@ -53,7 +53,6 @@ public class NotificationServiceImpl implements NotificationService {
         ctx.setVariable("patientName", request.getPatientName());
         ctx.setVariable("doctorName", request.getDoctorName());
         ctx.setVariable("appointmentId", request.getAppointmentId());
-        ctx.setVariable("resultUrl", request.getResultUrl());
 
         String htmlContent = templateEngine.process("medical-result", ctx);
         String subject = "🩺 Kết quả khám của bạn đã sẵn sàng";

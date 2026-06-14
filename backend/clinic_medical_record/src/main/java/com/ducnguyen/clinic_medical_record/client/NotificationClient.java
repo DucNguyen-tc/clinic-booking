@@ -17,6 +17,5 @@ public interface NotificationClient {
         private String patientName;
         private String doctorName;
         private Long appointmentId;
-        private String resultUrl;
     }
 }

@@ -161,4 +161,17 @@ public class AuthServiceImpl implements AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public com.ducnguyen.clinic_identity.dto.response.UserResponse getUserById(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND.value(), "User not found"));
+
+        return com.ducnguyen.clinic_identity.dto.response.UserResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .build();
+    }
 }
