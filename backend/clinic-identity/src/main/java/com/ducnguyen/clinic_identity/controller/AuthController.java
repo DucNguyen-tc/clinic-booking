@@ -46,7 +46,7 @@ public class AuthController {
         // Tạo HttpOnly Cookie cho Refresh Token
         ResponseCookie cookie = ResponseCookie.from("refresh_token", loginResult.getRefreshToken())
                 .httpOnly(true)
-                .secure(true) // Chỉ truyền qua HTTPS (ở môi trường dev vẫn chạy được qua HTTPS/localhost)
+                .secure(false) // Fix: false cho môi trường dev HTTP (localhost). Đổi thành true khi deploy HTTPS
                 .path("/")
                 .maxAge(30 * 24 * 60 * 60) // Hạn dùng 30 ngày (bằng giây)
                 .sameSite("Lax")
@@ -71,7 +71,7 @@ public class AuthController {
         // Xóa Cookie ở Client
         ResponseCookie cookie = ResponseCookie.from("refresh_token", "")
                 .httpOnly(true)
-                .secure(true)
+                .secure(false) // Fix: phải khớp với flag lúc set (false cho HTTP dev)
                 .path("/")
                 .maxAge(0) // Xóa ngay lập tức
                 .sameSite("Lax")

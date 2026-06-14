@@ -1,6 +1,5 @@
 package com.ducnguyen.clinic_medical_record.config;
 
-import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,14 +13,17 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 @Configuration
@@ -30,7 +32,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthFilter jwtAuthFilter;
+    private final HeaderAuthFilter headerAuthFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -41,48 +43,40 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/api-docs/**").permitAll()
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(headerAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
     @Slf4j
     @Component
-    @RequiredArgsConstructor
-    public static class JwtAuthFilter extends OncePerRequestFilter {
-
-        private final JwtUtil jwtUtil;
+    public static class HeaderAuthFilter extends OncePerRequestFilter {
 
         @Override
         protected void doFilterInternal(HttpServletRequest request,
                                         HttpServletResponse response,
                                         FilterChain filterChain) throws ServletException, IOException {
-            String authHeader = request.getHeader("Authorization");
+            
+            String userId = request.getHeader("X-User-Id");
+            String role = request.getHeader("X-User-Role");
 
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                filterChain.doFilter(request, response);
-                return;
-            }
+            if (userId != null && !userId.trim().isEmpty() && SecurityContextHolder.getContext().getAuthentication() == null) {
+                try {
+                    List<GrantedAuthority> authorities = (role != null && !role.trim().isEmpty())
+                            ? Collections.singletonList(new SimpleGrantedAuthority(role.startsWith("ROLE_") ? role : "ROLE_" + role))
+                            : Collections.emptyList();
 
-            String token = authHeader.substring(7);
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userId, 
+                            null,   
+                            authorities
+                    );
 
-            try {
-                if (jwtUtil.isTokenValid(token)) {
-                    Claims claims = jwtUtil.extractAllClaims(token);
-                    String userId = claims.getSubject();
-                    String role = claims.get("role", String.class);
-
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    userId,
-                                    null,
-                                    List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                            );
-
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                } catch (Exception e) {
+                    log.error("Cannot set user authentication based on headers: " + e.getMessage());
                 }
-            } catch (Exception e) {
-                log.warn("JWT không hợp lệ: {}", e.getMessage());
             }
 
             filterChain.doFilter(request, response);

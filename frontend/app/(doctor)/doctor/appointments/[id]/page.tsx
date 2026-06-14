@@ -10,6 +10,7 @@ import type { Appointment } from "@/types/appointment";
 import type { MedicalHistoryEntry } from "@/types/medical-record";
 import { appointmentService } from "@/services/appointment.service";
 import { medicalRecordService } from "@/services/medical-record.service";
+import { toast } from "sonner";
 
 export default function AppointmentDetailPage() {
   const params = useParams();
@@ -61,7 +62,7 @@ export default function AppointmentDetailPage() {
             initials: initials,
           },
           timeRange: apptData.slotTime,
-          sessionType: "morning",
+          sessionType: parseInt(apptData.slotTime?.split(":")?.[0] ?? "8") < 12 ? "morning" : "afternoon",
           status: apptData.status,
           date: apptData.appointmentDate,
           reason: "Khám định kỳ",
@@ -80,6 +81,7 @@ export default function AppointmentDetailPage() {
         setHistory(mappedHistory);
       } catch (error) {
         console.error("Error fetching appointment details:", error);
+        toast.error("Không thể tải thông tin lịch hẹn");
       } finally {
         setIsLoading(false);
       }

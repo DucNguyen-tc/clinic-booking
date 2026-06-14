@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @theme inline {
@@ -5,7 +6,8 @@
   --color-foreground: #23191e;
 
   /* Primary */
-  --color-primary: #a32779;
+  --color-primary: #a72a7c;
+  --color-primary-hover: #881d63;
   --color-on-primary: #ffffff;
   --color-primary-container: #c34293;
   --color-on-primary-container: #fffbff;
@@ -78,6 +80,11 @@
   --spacing-unit: 8px;
   --spacing-container-max: 1280px;
   --spacing-margin-mobile: 16px;
+
+  /* Additional surface tokens */
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-bright: #fff8f8;
+  --color-surface-dim: #e8d5dc;
 }
 
 @layer base {
@@ -98,10 +105,44 @@
   }
 
   .clinical-shadow {
-    box-shadow: 0px 4px 12px rgba(130, 115, 121, 0.08);
+    box-shadow: 0px 4px 24px rgba(167, 42, 124, 0.06);
   }
 
   .clinical-shadow-lg {
-    box-shadow: 0px 8px 48px rgba(130, 115, 121, 0.12);
+    box-shadow: 0px 10px 40px rgba(167, 42, 124, 0.1);
   }
+
+  /* Medibook specific utilities */
+  .clip-diagonal {
+    clip-path: polygon(0 0, 100% 40px, 100% 100%, 0 calc(100% - 40px));
+  }
+
+  .clip-diagonal-footer {
+    clip-path: polygon(0 40px, 100% 0, 100% 100%, 0 100%);
+  }
+
+  .heart-shape {
+    border-radius: 60% 40% 60% 40% / 40% 60% 40% 60%;
+  }
+}
+
+/* Ripple animation for chat button */
+@keyframes ripple {
+  0% { transform: scale(0.95); opacity: 0.5; }
+  50% { opacity: 0.3; }
+  100% { transform: scale(1.15); opacity: 0; }
+}
+
+.ripple-effect {
+  position: relative;
+}
+
+.ripple-effect::after {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border: 2px solid #a72a7c;
+  border-radius: 9999px;
+  animation: ripple 3s infinite ease-out;
+  pointer-events: none;
 }

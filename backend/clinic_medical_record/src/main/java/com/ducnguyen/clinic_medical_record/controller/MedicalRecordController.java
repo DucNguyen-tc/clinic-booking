@@ -61,6 +61,16 @@ public class MedicalRecordController {
         return ResponseEntity.ok(ApiResponse.ok(records));
     }
 
+    @GetMapping("/patient/{patientId}")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Bác sĩ xem lịch sử bệnh án của bệnh nhân theo patientId")
+    public ResponseEntity<ApiResponse<List<MedicalRecordResponse>>> getRecordsByPatientId(
+            @PathVariable String patientId
+    ) {
+        List<MedicalRecordResponse> records = medicalRecordService.getMyRecords(patientId);
+        return ResponseEntity.ok(ApiResponse.ok(records));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('DOCTOR', 'PATIENT', 'ADMIN')")
     @Operation(summary = "Xem chi tiết bệnh án")

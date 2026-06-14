@@ -35,4 +35,11 @@ export const medicalRecordService = {
     const response = await api.post<{ data: MedicalRecordResponse }>('/api/medical-records', payload)
     return response.data.data
   },
+  /**
+   * Lấy chi tiết bệnh án theo appointmentId
+   */
+  getRecordByAppointmentId: async (appointmentId: number): Promise<MedicalRecordResponse> => {
+    const response = await api.get<{ data: MedicalRecordResponse }>(`/api/medical-records/appointment/${appointmentId}`)
+    return response.data.data
+  },
 }

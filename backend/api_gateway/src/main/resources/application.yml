@@ -31,7 +31,7 @@ spring:
         - id: clinic_appointment
           uri: http://localhost:8083
           predicates:
-            - Path=/api/appointments/**
+            - Path=/api/appointments/**, /api/slots/**
           filters:
             - StripPrefix=0
 

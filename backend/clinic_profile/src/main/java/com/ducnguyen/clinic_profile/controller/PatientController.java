@@ -20,7 +20,7 @@ public class PatientController {
     private final PatientService patientService;
 
     @GetMapping("/{userId}")
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or #userId == authentication.principal")
     public ResponseEntity<ApiResponse<PatientResponse>> getPatientProfile(@PathVariable String userId) {
         return ResponseEntity.ok(ApiResponse.<PatientResponse>builder()
                 .status(HttpStatus.OK.value())

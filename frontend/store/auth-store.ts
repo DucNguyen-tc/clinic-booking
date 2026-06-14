@@ -24,29 +24,35 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
 
-      setAuth: (accessToken: string, user: User) =>
+      setAuth: (accessToken: string, user: User) => {
         set({
           accessToken,
           user,
           isAuthenticated: true,
-        }),
+        })
+      },
 
-      setAccessToken: (accessToken: string) =>
+      setAccessToken: (accessToken: string) => {
         set((state) => ({
           ...state,
           accessToken,
-          isAuthenticated: !!state.user, // remain authenticated if user exists
-        })),
+          isAuthenticated: !!state.user,
+        }))
+      },
 
-      logout: () =>
+      logout: () => {
         set({
           accessToken: null,
           user: null,
           isAuthenticated: false,
-        }),
+        })
+      },
     }),
     {
       name: 'auth-storage', // name of item in localStorage
+      onRehydrateStorage: () => (state) => {
+        // Interceptor in lib/axios.ts handles attaching the token automatically
+      },
     }
   )
 )

@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import Image from "next/image"
 import { LoginForm } from "@/components/auth/login-form"
 import { Stethoscope } from "lucide-react"
@@ -5,7 +6,7 @@ import { Stethoscope } from "lucide-react"
 export default function LoginPage() {
   return (
     <div className="w-full max-w-[1200px] min-h-[760px] flex flex-col md:flex-row rounded-2xl overflow-hidden clinical-shadow-lg border border-outline-variant/30">
-      {/* Left Side: Illustration & Branding (Clinical Light Canvas) */}
+      {/* Left Side: Illustration & Branding */}
       <div className="hidden md:flex w-1/2 bg-surface-container-low flex-col items-center justify-center p-12 md:p-20 relative overflow-hidden">
         {/* Decorative Dots */}
         <div className="absolute top-10 left-10 grid grid-cols-3 gap-3 opacity-20">
@@ -13,16 +14,16 @@ export default function LoginPage() {
             <div key={i} className="w-4 h-4 rounded-full bg-primary" />
           ))}
         </div>
-        
-        {/* Branding & Subtext */}
+
+        {/* Branding */}
         <div className="text-center mb-8 z-10">
           <h2 className="font-headline-xl text-4xl font-bold text-primary tracking-tight mb-3">MediBook</h2>
           <p className="font-body-lg text-lg text-on-surface-variant max-w-xs md:max-w-sm mx-auto">
             Giải pháp quản lý sức khỏe toàn diện.
           </p>
         </div>
-        
-        {/* Illustration Area */}
+
+        {/* Illustration */}
         <div className="relative w-full max-w-sm aspect-square flex items-center justify-center z-10 transition-all hover:scale-105 duration-500">
           <Image
             src="/images/login-illustration.png"
@@ -34,13 +35,15 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* Background Decorative Shape */}
         <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
       </div>
 
-      {/* Right Side: Login Form (Dark Themed - Inverse Surface) */}
+      {/* Right Side: Login Form */}
       <div className="w-full md:w-1/2 bg-inverse-surface p-12 md:p-20 flex flex-col justify-center">
-        <LoginForm />
+        {/* Wrap LoginForm in Suspense because it uses useSearchParams() */}
+        <Suspense fallback={<div className="text-inverse-on-surface text-sm">Đang tải...</div>}>
+          <LoginForm />
+        </Suspense>
       </div>
 
       {/* Presentation Tag */}
