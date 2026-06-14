@@ -1,0 +1,82 @@
+Danh sách các API của từng Microservice trong hệ thống BookingClinic:
+
+================================================================================
+1. IDENTITY SERVICE (Cổng port: 8081 | Route Gateway: /api/auth/**)
+================================================================================
+| Method | Endpoint                  | Mô tả                                                |
+|--------|---------------------------|------------------------------------------------------|
+| POST   | /api/auth/register        | Đăng ký tài khoản mới (bệnh nhân)                    |
+| POST   | /api/auth/login           | Đăng nhập, trả về JWT access + refresh token         |
+| POST   | /api/auth/logout          | Thu hồi refresh token / Đăng xuất                    |
+| POST   | /api/auth/refresh         | Làm mới access token bằng refresh token              |
+| POST   | /api/auth/validate        | Xác thực tính hợp lệ của token                      |
+| GET    | /api/auth/get-me          | Lấy thông tin người dùng hiện tại đang đăng nhập     |
+| POST   | /api/auth/change-password | Thay đổi mật khẩu người dùng                        |
+
+================================================================================
+2. PROFILE SERVICE (Cổng port: 8082 | Route Gateway: /api/doctors/**, /api/patients/**, /api/specialties/**)
+================================================================================
+| Method | Endpoint                                         | Mô tả                                                                          |
+|--------|--------------------------------------------------|--------------------------------------------------------------------------------|
+| GET    | /api/specialties                                 | Lấy danh sách tất cả chuyên khoa                                              |
+| GET    | /api/specialties/{id}                             | Lấy thông tin chuyên khoa theo ID                                              |
+| POST   | /api/specialties                                 | Tạo chuyên khoa mới (Yêu cầu quyền ADMIN)                                      |
+| PUT    | /api/specialties/{id}                             | Cập nhật chuyên khoa theo ID (Yêu cầu quyền ADMIN)                              |
+| DELETE | /api/specialties/{id}                             | Xóa chuyên khoa theo ID (Yêu cầu quyền ADMIN)                                  |
+| GET    | /api/patients/{userId}                            | Lấy thông tin hồ sơ bệnh nhân theo ID người dùng                               |
+| POST   | /api/patients                                    | Tạo mới hồ sơ thông tin bệnh nhân                                              |
+| PUT    | /api/patients                                    | Cập nhật hồ sơ thông tin bệnh nhân                                             |
+| GET    | /api/doctors                                     | Lấy danh sách tất cả bác sĩ (có thể lọc theo specialtyId)                      |
+| GET    | /api/doctors/{userId}                             | Lấy thông tin hồ sơ bác sĩ theo ID người dùng                                  |
+| POST   | /api/doctors                                     | Tạo mới hồ sơ thông tin bác sĩ (Yêu cầu quyền ADMIN)                           |
+| PUT    | /api/doctors/{userId}                             | Cập nhật thông tin bác sĩ (Yêu cầu quyền ADMIN hoặc chính Bác sĩ đó)           |
+| DELETE | /api/doctors/{userId}                             | Xóa bác sĩ theo ID người dùng (Yêu cầu quyền ADMIN)                            |
+| GET    | /api/doctors/{doctorId}/schedules                | Lấy danh sách lịch làm việc của một bác sĩ                                     |
+| POST   | /api/doctors/{doctorId}/schedules                | Tạo lịch làm việc mới (Yêu cầu quyền ADMIN hoặc chính Bác sĩ đó)               |
+| PUT    | /api/doctors/{doctorId}/schedules/{scheduleId}   | Cập nhật lịch làm việc của bác sĩ (Yêu cầu quyền ADMIN hoặc chính Bác sĩ đó)   |
+| DELETE | /api/doctors/{doctorId}/schedules/{scheduleId}   | Xóa lịch làm việc của bác sĩ (Yêu cầu quyền ADMIN hoặc chính Bác sĩ đó)        |
+
+================================================================================
+3. APPOINTMENT SERVICE (Cổng port: 8083 | Route Gateway: /api/appointments/**, /api/slots/**)
+================================================================================
+| Method | Endpoint                        | Mô tả                                                                         |
+|--------|---------------------------------|-------------------------------------------------------------------------------|
+| POST   | /api/appointments               | Tạo cuộc hẹn khám bệnh mới                                                   |
+| GET    | /api/appointments/{id}           | Lấy chi tiết thông tin một cuộc hẹn theo ID                                   |
+| GET    | /api/appointments               | Lấy danh sách cuộc hẹn (Bệnh nhân, Bác sĩ, Admin thấy dữ liệu khác nhau)      |
+| PUT    | /api/appointments/{id}/confirm  | Xác nhận lịch khám                                                            |
+| PUT    | /api/appointments/{id}/complete | Hoàn thành ca khám bệnh                                                       |
+| PUT    | /api/appointments/{id}/cancel   | Hủy lịch hẹn khám                                                             |
+| POST   | /api/slots/lock                 | Khóa/Giữ chỗ slot giờ khám tạm thời                                           |
+| GET    | /api/slots/available            | Lấy danh sách các khung giờ khám còn trống của bác sĩ theo ngày               |
+
+================================================================================
+4. MEDICAL RECORD SERVICE (Cổng port: 8084 | Route Gateway: /api/medical-records/**)
+================================================================================
+| Method | Endpoint                                        | Mô tả                                                                          |
+|--------|-------------------------------------------------|--------------------------------------------------------------------------------|
+| POST   | /api/medical-records                            | Bác sĩ tạo hồ sơ bệnh án khám bệnh mới                                         |
+| GET    | /api/medical-records/patient/me                 | Bệnh nhân xem lịch sử các bệnh án của chính mình                              |
+| GET    | /api/medical-records/{id}                       | Xem chi tiết hồ sơ bệnh án theo ID                                              |
+| GET    | /api/medical-records/appointment/{appointmentId} | Lấy thông tin bệnh án gắn liền với mã cuộc hẹn                                 |
+| GET    | /api/medical-records/patient/{patientId}        | Bác sĩ/Admin xem lịch sử bệnh án của bệnh nhân theo ID bệnh nhân               |
+
+================================================================================
+5. PAYMENT SERVICE (Cổng port: 8085 | Route Gateway: /api/payments/**)
+================================================================================
+| Method | Endpoint                                  | Mô tả                                                               |
+|--------|-------------------------------------------|---------------------------------------------------------------------|
+| POST   | /api/payments                             | Tạo phiên thanh toán mới (tích hợp VNPay / MoMo)                    |
+| GET    | /api/payments/appointment/{appointmentId} | Lấy thông tin và trạng thái thanh toán của cuộc hẹn                 |
+| POST   | /api/payments/callback/vnpay              | Webhook nhận kết quả thanh toán từ cổng VNPay (IPN)                 |
+| GET    | /api/payments/vnpay-return                | Trang nhận kết quả và chuyển hướng người dùng của VNPay             |
+| POST   | /api/payments/callback/momo               | Webhook nhận kết quả giao dịch thanh toán từ MoMo                   |
+
+================================================================================
+6. NOTIFICATION SERVICE (Cổng port: 8086 | Route Gateway: /api/notifications/**)
+================================================================================
+| Method | Endpoint                                    | Mô tả                                                                |
+|--------|---------------------------------------------|----------------------------------------------------------------------|
+| POST   | /api/notifications/send                     | Gửi thông báo email đơn giản (nội bộ/hệ thống)                        |
+| POST   | /api/notifications/appointment-confirmation | Gửi email xác nhận đặt lịch khám thành công cho bệnh nhân            |
+| POST   | /api/notifications/medical-result           | Gửi email thông báo đã có kết quả bệnh án và đơn thuốc               |

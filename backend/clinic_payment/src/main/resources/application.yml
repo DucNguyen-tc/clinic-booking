@@ -6,7 +6,7 @@ spring:
     name: clinic_payment
 
   datasource:
-    url: jdbc:mysql://localhost:3307/clinic_payment?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/clinic_payment?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true
     username: root
     password: rootpassword
     driver-class-name: com.mysql.cj.jdbc.Driver

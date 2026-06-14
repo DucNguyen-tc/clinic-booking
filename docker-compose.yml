@@ -9,6 +9,128 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  clinic-identity:
+    build:
+      context: ./backend/clinic-identity
+      dockerfile: Dockerfile
+    container_name: clinic-identity
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://clinic_mysql:3306/clinic_identity?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+    depends_on:
+      mysql_db:
+        condition: service_healthy
+
+  clinic-profile:
+    build:
+      context: ./backend/clinic_profile
+      dockerfile: Dockerfile
+    container_name: clinic-profile
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://clinic_mysql:3306/clinic_profile?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+    depends_on:
+      mysql_db:
+        condition: service_healthy
+
+  clinic-appointment:
+    build:
+      context: ./backend/clinic_appointment
+      dockerfile: Dockerfile
+    container_name: clinic-appointment
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://clinic_mysql:3306/clinic_appointment?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+    depends_on:
+      mysql_db:
+        condition: service_healthy
+
+  clinic-medical-record:
+    build:
+      context: ./backend/clinic_medical_record
+      dockerfile: Dockerfile
+    container_name: clinic-medical-record
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://clinic_mysql:3306/clinic_medical_record?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+      - SERVICES_IDENTITY_URL=http://clinic-identity:8081
+      - SERVICES_APPOINTMENT_URL=http://clinic-appointment:8083
+      - SERVICES_NOTIFICATION_URL=http://clinic-notification:8086
+    depends_on:
+      mysql_db:
+        condition: service_healthy
+
+  clinic-payment:
+    build:
+      context: ./backend/clinic_payment
+      dockerfile: Dockerfile
+    container_name: clinic-payment
+    ports:
+      - "8085:8085"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://clinic_mysql:3306/clinic_payment?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+      - SERVICES_NOTIFICATION_URL=http://clinic-notification:8086
+      - SERVICES_APPOINTMENT_URL=http://clinic-appointment:8083
+    depends_on:
+      mysql_db:
+        condition: service_healthy
+
+  clinic-notification:
+    build:
+      context: ./backend/clinic_notification
+      dockerfile: Dockerfile
+    container_name: clinic-notification
+    ports:
+      - "8086:8086"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://clinic_mysql:3306/clinic_notification?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+    depends_on:
+      mysql_db:
+        condition: service_healthy
+
+  api-gateway:
+    build:
+      context: ./backend/api_gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_CLOUD_GATEWAY_ROUTES_0_URI=http://clinic-identity:8081
+      - SPRING_CLOUD_GATEWAY_ROUTES_1_URI=http://clinic-profile:8082
+      - SPRING_CLOUD_GATEWAY_ROUTES_2_URI=http://clinic-appointment:8083
+      - SPRING_CLOUD_GATEWAY_ROUTES_3_URI=http://clinic-medical-record:8084
+      - SPRING_CLOUD_GATEWAY_ROUTES_4_URI=http://clinic-payment:8085
+      - SPRING_CLOUD_GATEWAY_ROUTES_5_URI=http://clinic-notification:8086
+    depends_on:
+      - clinic-identity
+      - clinic-profile
+      - clinic-appointment
+      - clinic-medical-record
+      - clinic-payment
+      - clinic-notification
 
 volumes:
   mysql_data:

@@ -20,14 +20,14 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "users")
-@Data // Tự sinh Getter, Setter, toString (Của Lombok)
-@NoArgsConstructor // Tự sinh hàm khởi tạo không tham số
-@AllArgsConstructor // Tự sinh hàm khởi tạo full tham số
-@Builder // Hỗ trợ tạo object theo chuẩn Builder Pattern 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID) 
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", updatable = false, nullable = false, columnDefinition = "VARCHAR(36)")
     private String id;
 
