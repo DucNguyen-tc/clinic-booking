@@ -13,7 +13,7 @@ spring:
       routes:
         # 1. Identity Service (port 8081) — Auth endpoints (public)
         - id: clinic-identity
-          uri: http://localhost:8081
+          uri: ${CLINIC_IDENTITY_URI:http://localhost:8081}
           predicates:
             - Path=/api/auth/**
           filters:
@@ -21,7 +21,7 @@ spring:
 
         # 2. Profile Service (port 8082) — Doctor, Patient, Specialty, Schedule
         - id: clinic_profile
-          uri: http://localhost:8082
+          uri: ${CLINIC_PROFILE_URI:http://localhost:8082}
           predicates:
             - Path=/api/doctors/**, /api/patients/**, /api/specialties/**
           filters:
@@ -29,7 +29,7 @@ spring:
 
         # 3. Appointment Service (port 8083)
         - id: clinic_appointment
-          uri: http://localhost:8083
+          uri: ${CLINIC_APPOINTMENT_URI:http://localhost:8083}
           predicates:
             - Path=/api/appointments/**, /api/slots/**
           filters:
@@ -37,7 +37,7 @@ spring:
 
         # 4. Medical Record Service (port 8084)
         - id: clinic_medical_record
-          uri: http://localhost:8084
+          uri: ${CLINIC_MEDICAL_RECORD_URI:http://localhost:8084}
           predicates:
             - Path=/api/medical-records/**
           filters:
@@ -45,7 +45,7 @@ spring:
 
         # 5. Payment Service (port 8085)
         - id: clinic_payment
-          uri: http://localhost:8085
+          uri: ${CLINIC_PAYMENT_URI:http://localhost:8085}
           predicates:
             - Path=/api/payments/**
           filters:
@@ -53,7 +53,7 @@ spring:
 
         # 6. Notification Service (port 8086)
         - id: clinic_notification
-          uri: http://localhost:8086
+          uri: ${CLINIC_NOTIFICATION_URI:http://localhost:8086}
           predicates:
             - Path=/api/notifications/**
           filters:

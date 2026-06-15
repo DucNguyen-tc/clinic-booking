@@ -157,12 +157,12 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_CLOUD_GATEWAY_ROUTES_0_URI=http://clinic-identity:8081
-      - SPRING_CLOUD_GATEWAY_ROUTES_1_URI=http://clinic-profile:8082
-      - SPRING_CLOUD_GATEWAY_ROUTES_2_URI=http://clinic-appointment:8083
-      - SPRING_CLOUD_GATEWAY_ROUTES_3_URI=http://clinic-medical-record:8084
-      - SPRING_CLOUD_GATEWAY_ROUTES_4_URI=http://clinic-payment:8085
-      - SPRING_CLOUD_GATEWAY_ROUTES_5_URI=http://clinic-notification:8086
+      - CLINIC_IDENTITY_URI=http://clinic-identity:8081
+      - CLINIC_PROFILE_URI=http://clinic-profile:8082
+      - CLINIC_APPOINTMENT_URI=http://clinic-appointment:8083
+      - CLINIC_MEDICAL_RECORD_URI=http://clinic-medical-record:8084
+      - CLINIC_PAYMENT_URI=http://clinic-payment:8085
+      - CLINIC_NOTIFICATION_URI=http://clinic-notification:8086
       - JWT_SECRET=${JWT_SECRET}
       - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75.0
     depends_on:
