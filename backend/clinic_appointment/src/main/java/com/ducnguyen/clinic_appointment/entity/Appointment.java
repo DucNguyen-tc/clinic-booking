@@ -24,6 +24,15 @@ public class Appointment {
     @Column(name = "patient_id", nullable = false)
     private String patientId;
 
+    @Column(name = "patient_name", nullable = true)
+    private String patientName;
+
+    @Column(name = "patient_phone", nullable = true)
+    private String patientPhone;
+
+    @Column(name = "notes", nullable = true, columnDefinition = "TEXT")
+    private String notes;
+
     @Column(name = "doctor_id", nullable = false)
     private String doctorId;
 

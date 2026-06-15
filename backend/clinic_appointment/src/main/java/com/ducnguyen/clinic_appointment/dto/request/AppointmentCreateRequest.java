@@ -15,4 +15,8 @@ public class AppointmentCreateRequest {
 
     @NotNull(message = "Specialty ID cannot be null")
     private Integer specialtyId;
+
+    private String patientName;
+    private String patientPhone;
+    private String notes;
 }

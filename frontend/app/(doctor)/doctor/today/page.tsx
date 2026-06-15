@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { CalendarDays, RefreshCw, Loader2 } from "lucide-react"
+import { CalendarDays, RefreshCw, Loader2, CheckCircle } from "lucide-react"
 import { AppointmentTable } from "@/components/doctor/appointment-table"
 import { cn } from "@/lib/utils"
 import { appointmentService, type PatientApiResponse } from "@/services/appointment.service"
 import type { Appointment, AppointmentApiResponse, SessionType, Patient } from "@/types/appointment"
+import { toast } from "sonner"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -87,15 +88,25 @@ const SESSION_TABS: { label: string; value: SessionType }[] = [
   { label: "Ca chiều", value: "afternoon" },
 ]
 
+type StatusFilter = "all" | "PENDING_PAYMENT" | "CONFIRMED" | "COMPLETED"
+const STATUS_TABS: { label: string; value: StatusFilter; color: string }[] = [
+  { label: "Tất cả", value: "all", color: "bg-primary" },
+  { label: "Chờ xác nhận", value: "PENDING_PAYMENT", color: "bg-amber-500" },
+  { label: "Đã xác nhận", value: "CONFIRMED", color: "bg-blue-500" },
+  { label: "Đã khám", value: "COMPLETED", color: "bg-green-500" },
+]
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TodayAppointmentsPage() {
   const [session, setSession] = useState<SessionType>("all")
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [date, setDate] = useState(getTodayDate())
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmingId, setConfirmingId] = useState<number | null>(null)
 
   /**
    * Fetch appointments từ API và enrich với thông tin patient
@@ -107,11 +118,11 @@ export default function TodayAppointmentsPage() {
       // 1. Lấy danh sách appointments từ clinic_appointment service
       const rawAppointments: AppointmentApiResponse[] = await appointmentService.getAppointments()
 
-      // 2. Lọc theo ngày đã chọn + chỉ hiển thị CONFIRMED và COMPLETED
+      // 2. Lọc theo ngày đã chọn — hiển thị tất cả trạng thái (kể cả PENDING_PAYMENT để bác sĩ xác nhận)
       const filteredByDate = rawAppointments.filter(
         (a) =>
           a.appointmentDate === date &&
-          (a.status === "CONFIRMED" || a.status === "COMPLETED")
+          a.status !== "CANCELLED"
       )
 
       // 3. Sắp xếp theo slotTime
@@ -135,20 +146,25 @@ export default function TodayAppointmentsPage() {
       const mapped: Appointment[] = filteredByDate.map((raw, index) => {
         const patientInfo = patientMap.get(raw.patientId)
 
+        const name = raw.patientName || patientInfo?.fullName || `Bệnh nhân #${raw.patientId.slice(0, 8)}`
+        const phone = raw.patientPhone || patientInfo?.phone
+
         const patient: Patient = patientInfo
           ? {
               id: patientInfo.userId,
-              name: patientInfo.fullName,
+              name: name,
               age: calculateAge(patientInfo.dob),
               gender: mapGender(patientInfo.gender),
-              initials: getInitials(patientInfo.fullName),
+              initials: getInitials(name),
+              phone: phone,
             }
           : {
               id: raw.patientId,
-              name: `Bệnh nhân #${raw.patientId.slice(0, 8)}`,
+              name: name,
               age: 0,
               gender: "other" as const,
-              initials: "??",
+              initials: getInitials(name),
+              phone: phone,
             }
 
         return {
@@ -158,6 +174,7 @@ export default function TodayAppointmentsPage() {
           timeRange: computeTimeRange(raw.slotTime),
           sessionType: getSessionType(raw.slotTime),
           status: raw.status,
+          reason: raw.notes || "",
           date: raw.appointmentDate,
           doctorId: raw.doctorId,
           specialtyId: raw.specialtyId,
@@ -184,15 +201,31 @@ export default function TodayAppointmentsPage() {
     setRefreshing(false)
   }
 
-  // Lọc theo session
+  // Lọc theo session và status
   const filtered = appointments.filter(
-    (a) => session === "all" || a.sessionType === session
+    (a) =>
+      (session === "all" || a.sessionType === session) &&
+      (statusFilter === "all" || a.status === statusFilter)
   )
 
   const counts = {
     total: appointments.length,
+    pending: appointments.filter((a) => a.status === "PENDING_PAYMENT").length,
     confirmed: appointments.filter((a) => a.status === "CONFIRMED").length,
     completed: appointments.filter((a) => a.status === "COMPLETED").length,
+  }
+
+  const handleConfirm = async (id: number) => {
+    setConfirmingId(id)
+    try {
+      await appointmentService.confirmAppointment(id)
+      toast.success("Đã xác nhận lịch hẹn!")
+      await fetchAppointments()
+    } catch (err: any) {
+      toast.error("Xác nhận thất bại: " + (err?.response?.data?.message || err?.message))
+    } finally {
+      setConfirmingId(null)
+    }
   }
 
   return (
@@ -203,7 +236,7 @@ export default function TodayAppointmentsPage() {
           <h1 className="font-bold text-3xl mb-1">Lịch Khám Hôm Nay</h1>
           <p className="text-lg opacity-90">
             {formatDisplayDate(date)} •{" "}
-            <span className="font-bold">Bạn có {counts.confirmed} lịch hẹn đã xác nhận.</span>
+            <span className="font-bold">Bạn có {counts.confirmed} đã xác nhận</span>{counts.pending > 0 && <span className="font-bold text-yellow-200"> • {counts.pending} chờ xác nhận</span>}
           </p>
         </div>
         <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-10 hidden lg:block">
@@ -248,12 +281,38 @@ export default function TodayAppointmentsPage() {
           </div>
         </div>
 
+        {/* Status filter tabs */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Trạng thái</label>
+          <div className="flex gap-2 flex-wrap">
+            {STATUS_TABS.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setStatusFilter(tab.value)}
+                className={cn(
+                  "px-4 py-1.5 rounded-full text-xs font-semibold transition-all",
+                  statusFilter === tab.value
+                    ? `${tab.color} text-white shadow-sm`
+                    : "bg-secondary-fixed text-on-secondary-fixed hover:bg-secondary-container"
+                )}
+              >
+                {tab.label}
+                {tab.value === "PENDING_PAYMENT" && counts.pending > 0 && (
+                  <span className="ml-1.5 bg-white/30 rounded-full px-1.5 py-0.5 text-[10px]">{counts.pending}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Summary + Refresh */}
         <div className="ml-auto flex items-center gap-3">
           <div className="flex items-center gap-4 text-sm text-on-surface-variant">
             <span>Tổng: <strong className="text-on-surface">{filtered.length}</strong></span>
             <span className="w-px h-4 bg-outline-variant" />
-            <span>Đã xác nhận: <strong className="text-primary">{counts.confirmed}</strong></span>
+            <span>Chờ: <strong className="text-amber-500">{counts.pending}</strong></span>
+            <span className="w-px h-4 bg-outline-variant" />
+            <span>Xác nhận: <strong className="text-primary">{counts.confirmed}</strong></span>
             <span className="w-px h-4 bg-outline-variant" />
             <span>Đã khám: <strong className="text-tertiary">{counts.completed}</strong></span>
           </div>
@@ -289,7 +348,11 @@ export default function TodayAppointmentsPage() {
             </button>
           </div>
         ) : (
-          <AppointmentTable appointments={filtered} />
+          <AppointmentTable
+            appointments={filtered}
+            onConfirm={handleConfirm}
+            confirmingId={confirmingId}
+          />
         )}
       </section>
     </div>

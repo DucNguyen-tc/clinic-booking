@@ -18,6 +18,7 @@ export interface Patient {
   bloodType?: string
   weight?: number
   bloodPressure?: string
+  phone?: string
 }
 
 export interface Appointment {
@@ -43,5 +44,8 @@ export interface AppointmentApiResponse {
   appointmentDate: string    // "2024-05-24"
   slotTime: string           // "08:00:00"
   status: AppointmentStatus
+  patientName?: string
+  patientPhone?: string
+  notes?: string
   createdAt: string
 }

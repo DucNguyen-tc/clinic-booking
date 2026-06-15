@@ -39,7 +39,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     private static final List<String> WHITE_LIST = List.of(
             "/api/auth/login",
             "/api/auth/register",
-            "/api/auth/refresh-token",
+            "/api/auth/refresh",      // Fix: đổi từ /refresh-token → /refresh cho khớp AuthController
             "/api/auth/forgot-password"
     );
 

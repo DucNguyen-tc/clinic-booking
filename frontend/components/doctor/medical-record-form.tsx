@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { PrescriptionTable } from "@/components/doctor/prescription-table"
 import { medicalRecordSchema, type MedicalRecordFormData } from "@/types/medical-record"
 import { medicalRecordService } from "@/services/medical-record.service"
+import { appointmentService } from "@/services/appointment.service"
 
 interface MedicalRecordFormProps {
   appointmentId: number
@@ -40,7 +41,15 @@ export function MedicalRecordForm({ appointmentId, patientId, onSubmitSuccess }:
       }
 
       await medicalRecordService.createRecord(payload)
-      toast.success("Đã lưu hồ sơ bệnh án thành công!")
+
+      // Tự động complete appointment sau khi lưu bệnh án
+      try {
+        await appointmentService.completeAppointment(appointmentId)
+      } catch (completeErr) {
+        console.warn("Could not complete appointment:", completeErr)
+      }
+
+      toast.success("Đã lưu hồ sơ bệnh án và hoàn tất lịch khám!")
       onSubmitSuccess?.(data)
     } catch (error) {
       console.error("Failed to submit medical record:", error)

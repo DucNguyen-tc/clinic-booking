@@ -30,7 +30,7 @@ vnpay:
   tmn-code: NJH13EBI
   hash-secret: T2MX9289B27J36LLE1T71PNZRTFTMXER
   url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-  return-url: http://localhost:8085/api/payments/vnpay-return
+  return-url: http://localhost:3000/payment/result  # Fix: redirect về frontend thay vì backend
   api-url: https://sandbox.vnpayment.vn/merchant_webapi/api/transaction
 
 momo:

@@ -91,7 +91,6 @@ api.interceptors.response.use(
         useAuthStore.getState().setAccessToken(newAccessToken)
 
         // Cập nhật lại request ban đầu với token mới
-        api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
 
         processQueue(null, newAccessToken)

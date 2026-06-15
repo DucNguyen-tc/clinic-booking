@@ -48,6 +48,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         // 3. Create Appointment using Builder Pattern
         Appointment appointment = Appointment.builder()
                 .patientId(patientId)
+                .patientName(request.getPatientName())
+                .patientPhone(request.getPatientPhone())
+                .notes(request.getNotes())
                 .doctorId(slotLock.getDoctorId())
                 .specialtyId(request.getSpecialtyId())
                 .appointmentDate(slotLock.getLockDate())

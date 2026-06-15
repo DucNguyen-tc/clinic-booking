@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Search, Bell, HelpCircle, Settings } from "lucide-react";
+import { Search, Bell, HelpCircle, LogOut } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import { doctorProfileService } from "@/services/doctor.service";
+import { authService } from "@/services/auth.service";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface TopBarProps {
   searchPlaceholder?: string;
@@ -13,11 +16,22 @@ interface TopBarProps {
 export function DoctorTopBar({
   searchPlaceholder = "Tìm kiếm bệnh nhân, bệnh án...",
 }: TopBarProps) {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  const router = useRouter();
   const [profile, setProfile] = useState<{
     fullName: string;
     specialtyName: string;
   } | null>(null);
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+    } catch (_) { /* ignore server errors */ } finally {
+      logout();
+      toast.success("Đã đăng xuất thành công");
+      router.push("/login");
+    }
+  };
 
   useEffect(() => {
     if (user?.id) {
@@ -68,8 +82,12 @@ export function DoctorTopBar({
         <button className="hover:bg-surface-container-low rounded-full p-2.5 transition-all">
           <HelpCircle className="w-5 h-5 text-on-surface-variant" />
         </button>
-        <button className="hover:bg-surface-container-low rounded-full p-2.5 transition-all">
-          <Settings className="w-5 h-5 text-on-surface-variant" />
+        <button
+          onClick={handleLogout}
+          title="Đăng xuất"
+          className="hover:bg-error/10 rounded-full p-2.5 transition-all group"
+        >
+          <LogOut className="w-5 h-5 text-on-surface-variant group-hover:text-error transition-colors" />
         </button>
 
         <div className="h-8 w-px bg-outline-variant mx-1" />

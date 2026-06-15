@@ -45,19 +45,22 @@ export function LoginForm() {
       const loginRes = await authService.login(data);
       const accessToken = loginRes.data.token;
 
-      // 2. Set tạm token cho instance api để gọi getMe
-      // Mặc dù axios interceptor sẽ tự lấy, nhưng vì setState chưa update ngay lập tức
-      // nên ta cấu hình axios mặc định
-      api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+      if (!accessToken) {
+        toast.error("Đăng nhập thất bại: Không nhận được token từ server.");
+        return;
+      }
 
-      // 3. Gọi API getMe
-      const userRes = await authService.getMe();
-      const user = userRes.data;
+      // 2. Gọi getMe với token trực tiếp trong header (không qua interceptor)
+      //    vì store chưa được update nên interceptor sẽ đính token cũ/rỗng
+      const userRes = await api.get('/api/auth/get-me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const user = userRes.data.data;
 
-      // 4. Lưu vào Zustand Store
+      // 3. Lưu vào Zustand Store (đồng thời sync axios default header)
       setAuth(accessToken, user);
 
-      // 5. Điều hướng theo role
+      // 4. Điều hướng theo role
       toast.success("Đăng nhập thành công!");
       if (user.role === "ADMIN") {
         router.push("/admin/dashboard");

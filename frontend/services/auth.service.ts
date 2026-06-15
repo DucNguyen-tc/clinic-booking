@@ -16,9 +16,10 @@ export const authService = {
     return response.data
   },
 
-  getMe: async (): Promise<{ data: User }> => {
+  getMe: async (token?: string): Promise<{ data: User }> => {
     // Lấy thông tin user hiện tại (id, email, role)
-    const response = await api.get('/api/auth/get-me')
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {}
+    const response = await api.get('/api/auth/get-me', config)
     return response.data
   },
 
