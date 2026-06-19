@@ -76,6 +76,7 @@ function Stepper({ step }: { step: 1 | 2 | 3 }) {
   )
 }
 
+import { api } from '@/lib/axios'
 import { appointmentService } from '@/services/appointment.service'
 import { patientDoctorService } from '@/services/patient-booking.service'
 import { useAuthStore } from '@/store/auth-store'
@@ -117,6 +118,16 @@ function PaymentResultContent() {
       }
     }
 
+    const notifyBackend = async (allParams: Record<string, string>) => {
+      try {
+        // Gọi backend để cập nhật payment status và gửi email xác nhận
+        await api.get('/api/payments/vnpay-return', { params: allParams })
+      } catch (e) {
+        // Không ảnh hưởng UI, backend có thể đã xử lý qua IPN
+        console.warn('Backend callback notification skipped:', e)
+      }
+    }
+
     const responseCode = searchParams.get('vnp_ResponseCode')
     const txnRef = searchParams.get('vnp_TxnRef')
     const txnNo = searchParams.get('vnp_TransactionNo')
@@ -124,10 +135,18 @@ function PaymentResultContent() {
     const resultCode = searchParams.get('resultCode')
 
     if (responseCode !== null) {
+      // Thu thập tất cả vnp_* params để gửi lên backend
+      const allParams: Record<string, string> = {}
+      searchParams.forEach((value, key) => { allParams[key] = value })
+
       if (responseCode === '00' && txnRef) {
         const aptId = txnRef.split('-')[0]
+        // Song song: notify backend + fetch ticket
+        notifyBackend(allParams)
         fetchData(aptId, txnNo)
       } else {
+        // Thanh toán thất bại — vẫn notify để backend update status
+        notifyBackend(allParams)
         setStatus('failed')
       }
     } else if (resultCode !== null) {

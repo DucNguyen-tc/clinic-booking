@@ -5,6 +5,12 @@ export interface CreatePaymentRequest {
   amount: number
   paymentMethod: string     // "VNPAY" | "MOMO"
   orderInfo?: string
+  patientEmail?: string
+  patientName?: string
+  doctorName?: string
+  specialty?: string
+  appointmentDate?: string  // "YYYY-MM-DD"
+  slotTime?: string         // "HH:mm:ss"
 }
 
 export interface CreatePaymentResponse {

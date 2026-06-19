@@ -99,6 +99,14 @@ export const slotService = {
     })
     return response.data.data
   },
+
+  unlockSlot: async (slotLockId: number): Promise<void> => {
+    try {
+      await api.delete(`/api/slots/lock/${slotLockId}`)
+    } catch {
+      // Ignore errors when releasing lock (lock may have expired already)
+    }
+  },
 }
 
 // -------------------------------------------------------

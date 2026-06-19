@@ -47,4 +47,13 @@ public class SlotLockController {
                 .data(response)
                 .build());
     }
+
+    @DeleteMapping("/lock/{id}")
+    public ResponseEntity<Void> unlockSlot(
+            @PathVariable Integer id,
+            Authentication authentication) {
+        String patientId = authentication.getName();
+        slotLockService.unlockSlot(id, patientId);
+        return ResponseEntity.noContent().build();
+    }
 }

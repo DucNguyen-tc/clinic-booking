@@ -46,7 +46,10 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // VNPay/MoMo callback không cần auth (từ cổng thanh toán, không qua Gateway)
-                .requestMatchers("/api/payments/callback/**", "/api/payments/vnpay-return").permitAll()
+                .requestMatchers(
+                    "/api/payments/callback/**",
+                    "/api/payments/vnpay-return"   // VNPay browser return — không có JWT
+                ).permitAll()
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/api-docs/**").permitAll()
                 .anyRequest().authenticated()
             )

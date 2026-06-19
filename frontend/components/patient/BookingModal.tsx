@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X,
@@ -18,6 +18,17 @@ import {
 import type { PatientDoctor, PatientAppointment } from '@/types/patient-booking'
 import { slotService, bookingService } from '@/services/patient-booking.service'
 import { paymentService } from '@/services/payment.service'
+import { api } from '@/lib/axios'
+import { useAuthStore } from '@/store/auth-store'
+
+interface DoctorSchedule {
+  id: number
+  dayOfWeek: number  // 0=Sunday, 1=Monday, ..., 6=Saturday
+  shiftType: 'MORNING' | 'AFTERNOON' | 'EVENING'
+  startTime: string
+  endTime: string
+  isActive: boolean
+}
 
 interface BookingModalProps {
   doctor: PatientDoctor | null
@@ -36,36 +47,46 @@ export default function BookingModal({
 }: BookingModalProps) {
   if (!doctor) return null
 
+  const { user } = useAuthStore()
+
+  // Trả về YYYY-MM-DD theo giờ địa phương (tránh lỗi UTC vs VN +7)
+  const getLocalDateStr = (date: Date): string =>
+    date.toLocaleDateString('sv') // 'sv' locale cho ra format YYYY-MM-DD chuẩn
+
+  const today = new Date()
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
+  const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2)
+
   const [step, setStep] = useState<number>(1)
   const [selectedDate, setSelectedDate] = useState<string>(
-    new Date(Date.now() + 86400000).toISOString().split('T')[0]
+    getLocalDateStr(tomorrow)
   )
   const [selectedTime, setSelectedTime] = useState<string>('09:00')
-  const [availableSlots, setAvailableSlots] = useState<string[]>([
-    '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
-    '11:00', '11:30', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
-  ])
+  // allScheduleSlots: toàn bộ slots của ca bác sĩ (grid ổn định)
+  const [allScheduleSlots, setAllScheduleSlots] = useState<string[]>([])
+  // availableSlots: subset còn trống (chưa bị đặt / lock)
+  const [availableSlots, setAvailableSlots] = useState<string[]>([])
   const [loadingSlots, setLoadingSlots] = useState<boolean>(false)
+  // doctorOffDay: true khi API xác nhận bác sĩ không làm việc ngày được chọn
+  const [doctorOffDay, setDoctorOffDay] = useState<boolean>(false)
 
-  const filteredSlots = useMemo(() => {
-    if (!availableSlots.length) return []
-    const todayStr = new Date().toISOString().split('T')[0]
-    if (selectedDate !== todayStr) return availableSlots
-
-    // Nếu chọn hôm nay, lọc những giờ <= giờ hiện tại
+  // filteredSlots: lọc những slot trong tương lai (nếu chọn hôm nay)
+  // Dùng allScheduleSlots làm base để grid không nhảy
+  const filteredScheduleSlots = useMemo(() => {
+    const base = allScheduleSlots.length > 0 ? allScheduleSlots : availableSlots
+    if (!base.length) return []
+    const todayStr = getLocalDateStr(new Date())
+    if (selectedDate !== todayStr) return base
     const now = new Date()
     const currentHour = now.getHours()
     const currentMinute = now.getMinutes()
-
-    return availableSlots.filter(slot => {
+    return base.filter(slot => {
       const [hStr, mStr] = slot.split(':')
       const h = parseInt(hStr, 10)
       const m = parseInt(mStr, 10)
-      if (h > currentHour) return true
-      if (h === currentHour && m > currentMinute) return true
-      return false
+      return h > currentHour || (h === currentHour && m > currentMinute)
     })
-  }, [availableSlots, selectedDate])
+  }, [allScheduleSlots, availableSlots, selectedDate])
 
   const [patientName, setPatientName] = useState<string>('')
   const [patientPhone, setPatientPhone] = useState<string>('')
@@ -74,37 +95,175 @@ export default function BookingModal({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [createdAppointment, setCreatedAppointment] = useState<PatientAppointment | null>(null)
+  // Track slot lock state
+  const [currentLockId, setCurrentLockId] = useState<number | null>(null)
+  const [lockingSlot, setLockingSlot] = useState<string | null>(null) // slot đang trong quá trình lock
+  const currentLockIdRef = useRef<number | null>(null) // dùng ref để tránh stale closure trong cleanup
 
   const dateOptions = [
-    { value: new Date().toISOString().split('T')[0], label: 'Hôm nay' },
-    { value: new Date(Date.now() + 86400000).toISOString().split('T')[0], label: 'Ngày mai' },
-    { value: new Date(Date.now() + 172800000).toISOString().split('T')[0], label: 'Ngày kia' },
+    { value: getLocalDateStr(today), label: 'Hôm nay' },
+    { value: getLocalDateStr(tomorrow), label: 'Ngày mai' },
+    { value: getLocalDateStr(dayAfter), label: 'Ngày kia' },
   ]
+
+  // Hàm fetch slots có schedule filter — tái sử dụng được cả trong useEffect lẫn handleSelectSlot
+  const fetchAvailableSlots = useCallback(async () => {
+    setLoadingSlots(true)
+    try {
+      let allowedSlots: string[] | null = null
+      // scheduleApiOk = true nếu gọi API lịch làm việc thành công (dù không có ca nào)
+      let scheduleApiOk = false
+
+      try {
+        const schedRes = await api.get<{ data: DoctorSchedule[] }>(`/api/doctors/${doctor.id}/schedules`)
+        scheduleApiOk = true
+        const schedules: DoctorSchedule[] = schedRes.data.data || []
+        const selectedDayOfWeek = new Date(selectedDate + 'T00:00:00').getDay()
+        const activeSchedule = schedules.find(
+          (s) => s.dayOfWeek === selectedDayOfWeek && s.isActive
+        )
+        if (activeSchedule) {
+          setDoctorOffDay(false)
+          const MORNING_SLOTS = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30']
+          const AFTERNOON_SLOTS = ['13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30']
+          const EVENING_SLOTS = ['17:00', '17:30', '18:00', '18:30', '19:00', '19:30']
+          if (activeSchedule.shiftType === 'MORNING') allowedSlots = MORNING_SLOTS
+          else if (activeSchedule.shiftType === 'AFTERNOON') allowedSlots = AFTERNOON_SLOTS
+          else if (activeSchedule.shiftType === 'EVENING') allowedSlots = EVENING_SLOTS
+        } else {
+          // Bác sĩ không làm việc ngày này → đánh dấu nghỉ, không hiển thị slot nào
+          setDoctorOffDay(true)
+          setAllScheduleSlots([])
+          setAvailableSlots([])
+          setLoadingSlots(false)
+          return []
+        }
+      } catch {
+        // API lịch làm việc lỗi → scheduleApiOk = false, dùng fallback bên dưới
+        scheduleApiOk = false
+        allowedSlots = null
+      }
+
+      const slots = await slotService.getAvailableSlots(doctor.id, selectedDate)
+      const filteredBySchedule = allowedSlots
+        ? slots.filter((s) => allowedSlots!.includes(s))
+        : slots
+
+      // Cập nhật toàn bộ slots của ca (để grid ổn định)
+      if (allowedSlots) setAllScheduleSlots(allowedSlots)
+
+      if (filteredBySchedule.length > 0) {
+        setAvailableSlots(filteredBySchedule)
+        return filteredBySchedule
+      } else if (scheduleApiOk && allowedSlots) {
+        // API hoạt động tốt, bác sĩ có ca nhưng tất cả slots đã bị đặt
+        setAvailableSlots([])
+        return []
+      } else if (!scheduleApiOk) {
+        // API lỗi → fallback để tránh màn hình trống hoàn toàn
+        const fallback = [
+          '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
+          '11:00', '11:30', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
+        ]
+        setAvailableSlots(fallback)
+        return fallback
+      } else {
+        setAvailableSlots([])
+        return []
+      }
+    } catch {
+      const fallback = [
+        '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
+        '11:00', '11:30', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
+      ]
+      setAvailableSlots(fallback)
+      return fallback
+    } finally {
+      setLoadingSlots(false)
+    }
+  }, [doctor.id, selectedDate])
 
   // Load available slots when date or doctor changes
   useEffect(() => {
-    const fetchSlots = async () => {
-      setLoadingSlots(true)
+    if (step === 1) fetchAvailableSlots()
+  }, [selectedDate, doctor.id, step, fetchAvailableSlots])
+
+  // Polling realtime: cập nhật slot không có sẵn loading (silent refresh)
+  useEffect(() => {
+    if (step !== 1 || doctorOffDay) return
+    const poll = setInterval(async () => {
       try {
-        const slots = await slotService.getAvailableSlots(doctor.id, selectedDate)
-        setAvailableSlots(slots.length > 0 ? slots : [
-          '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
-          '11:00', '11:30', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
-        ])
-        if (slots.length > 0 && !slots.includes(selectedTime)) {
-          setSelectedTime(slots[0])
-        }
+        const fresh = await slotService.getAvailableSlots(doctor.id, selectedDate)
+        // Lọc theo allScheduleSlots nếu có
+        const filtered = allScheduleSlots.length > 0
+          ? fresh.filter((s) => allScheduleSlots.includes(s))
+          : fresh
+        setAvailableSlots(filtered)
       } catch {
-        setAvailableSlots([
-          '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
-          '11:00', '11:30', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
-        ])
-      } finally {
-        setLoadingSlots(false)
+        // ignore silent refresh error
+      }
+    }, 8000)
+    return () => clearInterval(poll)
+  }, [step, doctor.id, selectedDate, allScheduleSlots, doctorOffDay])
+
+  // Khi người dùng đổi ngày, release lock hiện tại
+  useEffect(() => {
+    if (currentLockId) {
+      slotService.unlockSlot(currentLockId)
+      setCurrentLockId(null)
+      currentLockIdRef.current = null
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate])
+
+  // Cleanup: release lock khi đóng modal — dùng ref để tránh stale closure
+  useEffect(() => {
+    currentLockIdRef.current = currentLockId
+  }, [currentLockId])
+
+  useEffect(() => {
+    return () => {
+      if (currentLockIdRef.current) {
+        slotService.unlockSlot(currentLockIdRef.current)
       }
     }
-    if (step === 1) fetchSlots()
-  }, [selectedDate, doctor.id, step])
+  }, []) // chỉ chạy cleanup khi unmount, không chạy khi currentLockId thay đổi
+
+  const handleSelectSlot = async (time: string) => {
+    if (!isLoggedIn) {
+      // Cho phép chọn slot mà không cần login, sẽ check lúc submit
+      setSelectedTime(time)
+      return
+    }
+    if (lockingSlot === time) return // đang xử lý slot này rồi
+
+    setLockingSlot(time)
+    setError(null)
+    try {
+      // Release lock cũ nếu có
+      if (currentLockId) {
+        await slotService.unlockSlot(currentLockId)
+        setCurrentLockId(null)
+      }
+      // Lock slot mới
+      const lock = await slotService.lockSlot(doctor.id, selectedDate, time + ':00')
+      setCurrentLockId(lock.id)
+      setSelectedTime(time)
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      if (msg?.includes('locked') || msg?.includes('booked')) {
+        // Slot bị người khác chiếm mất
+        // Refresh với đầy đủ schedule filter
+        setError('Slot này vừa được người khác chọn. Đang làm mới danh sách...')
+        const refreshed = await fetchAvailableSlots()
+        if (refreshed && refreshed.length > 0) setSelectedTime(refreshed[0])
+      } else {
+        setError('Không thể chọn slot này. Vui lòng thử lại.')
+      }
+    } finally {
+      setLockingSlot(null)
+    }
+  }
 
   const handleNextStep = () => {
     if (step === 2) {
@@ -142,21 +301,28 @@ export default function BookingModal({
     setError(null)
 
     try {
-      // Step 1: Lock the slot
-      const slotLock = await slotService.lockSlot(
-        doctor.id,
-        selectedDate,
-        selectedTime + ':00'
-      )
+      let activeLockId = currentLockId
 
-      // Step 2: Create appointment
+      // Nếu chưa lock (user chưa login lúc chọn slot), lock ngay
+      if (!activeLockId) {
+        const slotLock = await slotService.lockSlot(
+          doctor.id,
+          selectedDate,
+          selectedTime + ':00'
+        )
+        activeLockId = slotLock.id
+        setCurrentLockId(slotLock.id)
+      }
+
+      // Tạo appointment
       const apt = await bookingService.createAppointment(
-        slotLock.id,
+        activeLockId,
         parseInt(doctor.specialtyId),
         patientName,
         patientPhone,
         patientNotes
       )
+      setCurrentLockId(null) // lock đã được dùng, clear đi
 
       const displayId = 'MB-' + String(apt.id).padStart(6, '0')
       const newAppointment: PatientAppointment = {
@@ -180,7 +346,7 @@ export default function BookingModal({
       setCreatedAppointment(newAppointment)
       onBookingSuccess(newAppointment)
 
-      // Step 3: Gọi Payment API (trừ bank transfer)
+      // Gọi Payment API (trừ bank transfer)
       if (paymentMethod === 'vnpay' || paymentMethod === 'momo') {
         try {
           const paymentRes = await paymentService.createPayment({
@@ -188,20 +354,23 @@ export default function BookingModal({
             amount: doctor.price,
             paymentMethod: paymentMethod.toUpperCase(),
             orderInfo: `Thanh toan kham benh - Ma hen: ${displayId}`,
+            patientEmail: user?.email ?? '',
+            patientName: patientName,
+            doctorName: `${doctor.title} ${doctor.name}`,
+            specialty: doctor.specialtyName,
+            appointmentDate: selectedDate,           // truyền ngày thực tế
+            slotTime: selectedTime + ':00',           // truyền giờ thực tế
           })
-          // Redirect sang cổng thanh toán
           if (paymentRes.paymentUrl) {
             window.location.href = paymentRes.paymentUrl
             return
           }
         } catch (payErr) {
           console.error('Payment API error:', payErr)
-          // Nếu payment lỗi, vẫn hiện success nhưng cảnh báo
           setError('Đặt lịch thành công nhưng không thể tạo link thanh toán. Vui lòng thanh toán tại quầy.')
         }
       }
 
-      // Bank transfer hoặc payment lỗi → hiện step success
       setStep(4)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
@@ -333,30 +502,54 @@ export default function BookingModal({
                     Khung giờ điều trị
                   </h4>
                   {loadingSlots ? (
-                    <div className="flex justify-center p-4">
-                      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  ) : filteredSlots.length > 0 ? (
                     <div className="grid grid-cols-4 gap-2">
-                      {filteredSlots.map((time) => (
-                        <button
-                          key={time}
-                          type="button"
-                          onClick={() => setSelectedTime(time)}
-                          className={`py-3 rounded-xl font-semibold transition-all ${
-                            selectedTime === time
-                              ? 'bg-primary text-white shadow-md scale-105 ring-2 ring-primary/20'
-                              : 'bg-rose-50 text-on-surface hover:bg-rose-100'
-                          }`}
-                        >
-                          {time}
-                        </button>
+                      {(allScheduleSlots.length > 0 ? allScheduleSlots : Array(8).fill('')).map((_, i) => (
+                        <div key={i} className="h-[44px] rounded-xl bg-gray-100 animate-pulse" />
                       ))}
                     </div>
+                  ) : filteredScheduleSlots.length > 0 ? (
+                    <div className="grid grid-cols-4 gap-2">
+                      {filteredScheduleSlots.map((time) => {
+                        const isAvailable = availableSlots.includes(time)
+                        const isSelected = selectedTime === time
+                        const isLocking = lockingSlot === time
+                        const isLockedByMe = isSelected && currentLockId !== null
+                        const isTaken = !isAvailable && !isSelected
+
+                        return (
+                          <button
+                            key={time}
+                            type="button"
+                            disabled={isTaken || isLocking}
+                            onClick={() => !isTaken && handleSelectSlot(time)}
+                            title={isTaken ? 'Khung giờ này đã được đặt' : time}
+                            className={[
+                              'h-[44px] rounded-xl text-sm font-semibold transition-all duration-200',
+                              isTaken
+                                ? 'bg-gray-100 text-gray-300 cursor-not-allowed opacity-50'
+                                : isSelected && isLockedByMe
+                                ? 'bg-primary text-white shadow-lg ring-2 ring-primary/30 scale-[1.04]'
+                                : isSelected
+                                ? 'bg-primary/80 text-white shadow-md scale-[1.04]'
+                                : isLocking
+                                ? 'bg-primary/15 text-primary cursor-wait'
+                                : 'bg-rose-50 text-gray-700 hover:bg-rose-100 hover:scale-[1.04] active:scale-95',
+                            ].join(' ')}
+                          >
+                            {isLocking ? (
+                              <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                            ) : (
+                              time
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
                   ) : (
-                    <p className="text-sm text-gray-500 text-center py-4 col-span-full">
-                      Đã hết khung giờ trống trong ngày này. Vui lòng chọn ngày khác.
-                    </p>
+                    <div className="py-6 text-center">
+                      <p className="text-sm text-gray-500">Đã hết khung giờ trống trong ngày này.</p>
+                      <p className="text-xs text-gray-400 mt-1">Vui lòng chọn ngày khác.</p>
+                    </div>
                   )}
                 </div>
 

@@ -86,6 +86,16 @@ public class SlotLockServiceImpl implements SlotLockService {
     }
 
     @Override
+    @Transactional
+    public void unlockSlot(Integer slotLockId, String patientId) {
+        slotLockRepository.findById(slotLockId).ifPresent(lock -> {
+            if (lock.getPatientId().equals(patientId)) {
+                slotLockRepository.delete(lock);
+            }
+        });
+    }
+
+    @Override
     public List<LocalTime> getAvailableSlots(String doctorId, LocalDate date) {
         cleanExpiredLocks();
 

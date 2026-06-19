@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   Search,
   MapPin,
@@ -10,30 +11,22 @@ import {
   ArrowRight,
   CheckCircle,
   ShieldCheck,
-  ChevronRight,
   Activity,
-  Phone,
-  Mail,
-  Globe,
-  Info,
   CalendarDays,
   UserCheck,
-  AlertCircle,
-  X,
   Loader2,
+  ChevronRight,
 } from 'lucide-react'
+import * as Icons from 'lucide-react'
 
-import type { PatientDoctor, PatientSpecialty, PatientAppointment } from '@/types/patient-booking'
-import { patientDoctorService, specialtyService, bookingService } from '@/services/patient-booking.service'
-import { authService } from '@/services/auth.service'
-import { useAuthStore } from '@/store/auth-store'
+import type { PatientDoctor, PatientSpecialty } from '@/types/patient-booking'
+import { patientDoctorService, specialtyService } from '@/services/patient-booking.service'
 import DoctorCard from '@/components/patient/DoctorCard'
-import SpecialtyCard from '@/components/patient/SpecialtyCard'
 import BookingModal from '@/components/patient/BookingModal'
-import AppointmentList from '@/components/patient/AppointmentList'
-import ChatWidget from '@/components/patient/ChatWidget'
+import PatientLayout from '@/components/patient/PatientLayout'
+import { useAuthStore } from '@/store/auth-store'
+import { AnimatePresence } from 'framer-motion'
 
-// Fallback specialties if API is unavailable
 const FALLBACK_SPECIALTIES: PatientSpecialty[] = [
   { id: 'tim-mach', name: 'Tim mạch', count: 0, iconName: 'Heart' },
   { id: 'nhi-khoa', name: 'Nhi khoa', count: 0, iconName: 'Baby' },
@@ -45,375 +38,53 @@ const FALLBACK_SPECIALTIES: PatientSpecialty[] = [
 
 export default function PatientHomePage() {
   const router = useRouter()
-  // Data states
+  const { isAuthenticated } = useAuthStore()
+
   const [doctorsList, setDoctorsList] = useState<PatientDoctor[]>([])
   const [specialtiesList, setSpecialtiesList] = useState<PatientSpecialty[]>(FALLBACK_SPECIALTIES)
-  const [loadingDoctors, setLoadingDoctors] = useState<boolean>(true)
-  const [loadingSpecialties, setLoadingSpecialties] = useState<boolean>(true)
+  const [loadingDoctors, setLoadingDoctors] = useState(true)
+  const [loadingSpecialties, setLoadingSpecialties] = useState(true)
 
-  // Filter states
-  const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState<string>('')
-  const [selectedLocation, setSelectedLocation] = useState<string>('Tất cả địa điểm')
-  const [searchDate, setSearchDate] = useState<string>('')
-
-  // Booking states
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedLocation, setSelectedLocation] = useState('Tất cả địa điểm')
+  const [searchDate, setSearchDate] = useState('')
   const [activeDoctor, setActiveDoctor] = useState<PatientDoctor | null>(null)
-  const [appointments, setAppointments] = useState<PatientAppointment[]>([])
-  const [loadingAppointments, setLoadingAppointments] = useState<boolean>(false)
+  const [showLoginHint, setShowLoginHint] = useState(false)
 
-  // Auth states
-  const { isAuthenticated, user, accessToken, setAuth, logout: storeLogout } = useAuthStore()
-  const [showAuthModal, setShowAuthModal] = useState<'login' | 'register' | null>(null)
-  const [authEmail, setAuthEmail] = useState<string>('')
-  const [authPassword, setAuthPassword] = useState<string>('')
-  const [authName, setAuthName] = useState<string>('')
-  const [authLoading, setAuthLoading] = useState<boolean>(false)
-
-  // Notifications (toasts)
-  const [notifications, setNotifications] = useState<{ id: string; type: 'success' | 'info' | 'error'; text: string }[]>([])
-
-  // Navigation state
-  const [activeTab, setActiveTab] = useState<string>('trang-chu')
-
-  // Refs for scrolling
-  const finderRef = useRef<HTMLDivElement>(null)
-  const historyRef = useRef<HTMLDivElement>(null)
-
-  // Toast helper
-  const addNotification = useCallback((type: 'success' | 'info' | 'error', text: string) => {
-    const id = 'notif-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5)
-    setNotifications((prev) => [...prev, { id, type, text }])
-    setTimeout(() => {
-      setNotifications((prev) => prev.filter((n) => n.id !== id))
-    }, 4500)
-  }, [])
-
-  // Load doctors
-  const fetchDoctors = useCallback(async (specialtyNumericId?: number) => {
+  const fetchDoctors = useCallback(async () => {
     setLoadingDoctors(true)
     try {
-      const docs = await patientDoctorService.getAll(specialtyNumericId)
+      const docs = await patientDoctorService.getAll()
       setDoctorsList(docs)
     } catch {
-      // keep existing
+      // silent fail
     } finally {
       setLoadingDoctors(false)
     }
   }, [])
 
-  // Load specialties
   useEffect(() => {
-    const fetchSpecialties = async () => {
-      setLoadingSpecialties(true)
-      try {
-        const specs = await specialtyService.getAll()
-        if (specs.length > 0) setSpecialtiesList(specs)
-      } catch {
-        // use fallback
-      } finally {
-        setLoadingSpecialties(false)
-      }
-    }
-    fetchSpecialties()
+    specialtyService.getAll().then((data) => {
+      if (data.length > 0) setSpecialtiesList(data)
+    }).catch(() => {}).finally(() => setLoadingSpecialties(false))
     fetchDoctors()
   }, [fetchDoctors])
 
-  // Reload doctors when specialty filter changes
-  useEffect(() => {
-    const spec = selectedSpecialty
-      ? specialtiesList.find((s) => s.id === selectedSpecialty)
-      : null
-    fetchDoctors(spec?.numericId)
-  }, [selectedSpecialty, specialtiesList, fetchDoctors])
-
-  // Load appointments after login
-  const fetchMyAppointments = useCallback(async () => {
-    if (!isAuthenticated) return
-    setLoadingAppointments(true)
-    try {
-      const [raw, doctors] = await Promise.all([
-        bookingService.getMyAppointments(),
-        patientDoctorService.getAll()
-      ])
-
-      const mapped: PatientAppointment[] = raw.map((apt) => {
-        const doc = doctors.find((d) => d.id === apt.doctorId)
-        return {
-          id: 'MB-' + String(apt.id).padStart(6, '0'),
-          backendId: apt.id,
-          doctorId: apt.doctorId,
-          doctorName: doc?.name || 'Bác sĩ',
-          doctorTitle: doc?.title || '',
-          specialtyName: doc?.specialtyName || '',
-          hospital: doc?.hospital || 'Phòng khám MediBook',
-          date: apt.appointmentDate,
-          timeSlot: apt.slotTime?.substring(0, 5) || '',
-          patientName: apt.patientName || user?.email || '',
-          patientPhone: apt.patientPhone || '',
-          paymentMethod: '',
-          status: apt.status === 'CANCELLED' ? 'cancelled' : apt.status === 'COMPLETED' ? 'completed' : 'upcoming',
-          createdAt: apt.createdAt,
-        }
-      })
-      setAppointments(mapped)
-    } catch {
-      // silent fail
-    } finally {
-      setLoadingAppointments(false)
-    }
-  }, [isAuthenticated, user])
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchMyAppointments()
-    } else {
-      setAppointments([])
-    }
-  }, [isAuthenticated, fetchMyAppointments])
-
-  // Scroll spy
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollPosition = window.scrollY + 120
-      const sections = [
-        { id: 'chuyen-khoa', element: document.getElementById('chuyen-khoa') },
-        { id: 'bac-si', element: document.getElementById('bac-si-kiem-tra') },
-        { id: 'quy-trinh', element: document.getElementById('quy-trinh') },
-        { id: 'lich-kham', element: document.getElementById('lich-kham') },
-      ]
-      let currentSection = 'trang-chu'
-      for (const section of sections) {
-        if (section.element && scrollPosition >= section.element.offsetTop) {
-          currentSection = section.id
-        }
-      }
-      setActiveTab(currentSection)
-    }
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
-  // Filter computation (client-side text search, location)
-  const filteredDoctors = doctorsList.filter((doc) => {
-    const normalize = (s: string) =>
-      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    const q = normalize(searchQuery)
-    const matchesKeyword =
-      !q ||
-      normalize(doc.name).includes(q) ||
-      normalize(doc.hospital).includes(q) ||
-      normalize(doc.specialtyName).includes(q)
-    const matchesLocation =
-      selectedLocation === 'Tất cả địa điểm' ||
-      doc.location.toLowerCase().includes(selectedLocation.toLowerCase())
-    return matchesKeyword && matchesLocation
-  })
-
-  // Auth handlers
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!authEmail.trim() || !authPassword.trim()) {
-      addNotification('error', 'Vui lòng nhập đầy đủ email và mật khẩu.')
-      return
-    }
-    setAuthLoading(true)
-    try {
-      if (showAuthModal === 'register') {
-        await authService.register({ email: authEmail, password: authPassword, terms: true })
-        addNotification('success', 'Đăng ký thành công! Vui lòng đăng nhập.')
-        setShowAuthModal('login')
-      } else {
-        const res = await authService.login({ email: authEmail, password: authPassword })
-        const token = res.data?.token || res.token
-        // Get user info
-        const meRes = await authService.getMe(token)
-        const userInfo = meRes.data
-        setAuth(token, userInfo)
-        addNotification('success', `Đăng nhập thành công! Chào mừng ${userInfo.email}.`)
-        setShowAuthModal(null)
-        setAuthEmail('')
-        setAuthPassword('')
-        setAuthName('')
-        
-        if (userInfo.role === 'DOCTOR') {
-          router.push('/doctor/today')
-        } else if (userInfo.role === 'ADMIN') {
-          router.push('/admin/dashboard')
-        }
-      }
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      addNotification('error', msg || (showAuthModal === 'register' ? 'Đăng ký thất bại. Email có thể đã tồn tại.' : 'Đăng nhập thất bại. Kiểm tra lại thông tin.'))
-    } finally {
-      setAuthLoading(false)
-    }
+  // Navigate to doctors page with optional filters
+  const handleSearch = () => {
+    const params = new URLSearchParams()
+    if (searchQuery) params.set('q', searchQuery)
+    if (selectedLocation !== 'Tất cả địa điểm') params.set('location', selectedLocation)
+    if (searchDate) params.set('date', searchDate)
+    router.push(`/doctors?${params.toString()}`)
   }
 
-  const handleLogout = async () => {
-    try {
-      await authService.logout()
-    } catch { /* ignore */ }
-    storeLogout()
-    addNotification('info', 'Bạn đã đăng xuất khỏi hệ thống.')
-  }
-
-  // Booking handlers
-  const handleBookingConfirm = (newApt: PatientAppointment) => {
-    setAppointments((prev) => [newApt, ...prev])
-    addNotification('success', `Đặt lịch thành công với ${newApt.doctorTitle} ${newApt.doctorName}!`)
-    setTimeout(() => {
-      if (historyRef.current) {
-        historyRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
-    }, 500)
-  }
-
-  const handleCancelAppointment = async (id: string, backendId?: number) => {
-    const confirm = window.confirm('Bạn có chắc chắn muốn hủy cuộc hẹn này không?')
-    if (!confirm) return
-    if (backendId) {
-      try {
-        await bookingService.cancelAppointment(backendId)
-      } catch {
-        addNotification('error', 'Không thể hủy lịch hẹn. Vui lòng thử lại.')
-        return
-      }
-    }
-    setAppointments((prev) =>
-      prev.map((apt) => (apt.id === id ? { ...apt, status: 'cancelled' as const } : apt))
-    )
-    addNotification('info', 'Đã hủy lịch hẹn khám bệnh thành công.')
-  }
-
-  const scrollToFinder = () => {
-    finderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-
-  const navItems = [
-    { id: 'trang-chu', label: 'Trang chủ', href: '#', onClick: () => { window.scrollTo({ top: 0, behavior: 'smooth' }); setActiveTab('trang-chu') } },
-    { id: 'chuyen-khoa', label: 'Chuyên khoa', href: '#chuyen-khoa', onClick: () => { document.getElementById('chuyen-khoa')?.scrollIntoView({ behavior: 'smooth' }); setActiveTab('chuyen-khoa') } },
-    { id: 'bac-si', label: 'Bác sĩ', href: '#bac-si', onClick: () => { document.getElementById('bac-si-kiem-tra')?.scrollIntoView({ behavior: 'smooth' }); setActiveTab('bac-si') } },
-    { id: 'quy-trinh', label: 'Quy trình', href: '#quy-trinh', onClick: () => { document.getElementById('quy-trinh')?.scrollIntoView({ behavior: 'smooth' }); setActiveTab('quy-trinh') } },
-  ]
-
-  const userDisplayName = user?.email?.split('@')[0] || ''
+  // Preview: first 6 specialties, first 3 doctors
+  const previewSpecialties = specialtiesList.slice(0, 6)
+  const previewDoctors = doctorsList.slice(0, 3)
 
   return (
-    <div className="bg-surface font-sans text-on-surface antialiased min-h-screen flex flex-col justify-between">
-      {/* Toast notifications */}
-      <div className="fixed top-24 right-6 z-50 space-y-3 pointer-events-none max-w-sm w-full">
-        <AnimatePresence>
-          {notifications.map((n) => (
-            <motion.div
-              key={n.id}
-              initial={{ opacity: 0, x: 50, scale: 0.95 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 50, scale: 0.95 }}
-              className={`p-4 rounded-xl shadow-lg border flex items-start gap-3 pointer-events-auto ${
-                n.type === 'success'
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                  : n.type === 'error'
-                  ? 'bg-red-50 text-red-800 border-red-200'
-                  : 'bg-indigo-50 text-indigo-800 border-indigo-200'
-              }`}
-            >
-              {n.type === 'success' && <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />}
-              {n.type === 'error' && <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />}
-              {n.type === 'info' && <Info className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />}
-              <p className="text-xs font-semibold leading-relaxed">{n.text}</p>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-
-      {/* Navigation Bar */}
-      <header className="bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-outline-variant/10 shadow-xs">
-        <div className="flex justify-between items-center px-6 md:px-12 h-20 w-full max-w-7xl mx-auto">
-          <div className="flex items-center gap-10">
-            {/* Logo */}
-            <div
-              className="flex items-center gap-2 cursor-pointer"
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            >
-              <span className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-black text-lg shadow-md tracking-wider">
-                M
-              </span>
-              <span className="text-xl font-black text-primary tracking-tight">
-                Medi<span className="text-secondary">Book</span>
-              </span>
-            </div>
-
-            {/* Desktop nav */}
-            <nav className="hidden md:flex items-center gap-6">
-              {navItems.map((item) => (
-                <a
-                  key={item.id}
-                  href={item.href}
-                  onClick={(e) => { e.preventDefault(); item.onClick() }}
-                  className={`text-xs uppercase tracking-widest pb-1 transition-all duration-200 border-b-2 ${
-                    activeTab === item.id
-                      ? 'text-primary border-primary font-black'
-                      : 'text-on-surface-variant hover:text-primary border-transparent font-bold'
-                  }`}
-                >
-                  {item.label}
-                </a>
-              ))}
-              {appointments.length > 0 && (
-                <a
-                  href="#lich-kham"
-                  onClick={(e) => { e.preventDefault(); document.getElementById('lich-kham')?.scrollIntoView({ behavior: 'smooth' }); setActiveTab('lich-kham') }}
-                  className={`text-xs uppercase tracking-widest pb-1 transition-all duration-200 border-b-2 ${
-                    activeTab === 'lich-kham'
-                      ? 'text-primary border-primary font-black'
-                      : 'text-on-surface-variant hover:text-primary border-transparent font-bold'
-                  }`}
-                >
-                  Lịch của tôi ({appointments.filter((a) => a.status === 'upcoming').length})
-                </a>
-              )}
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {isAuthenticated && user ? (
-              <div className="flex items-center gap-3 bg-primary/5 px-4 py-2 rounded-full border border-primary/15">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs font-bold text-primary">Hi, {userDisplayName}</span>
-                <button
-                  onClick={() => router.push('/profile')}
-                  className="text-xs text-on-surface-variant hover:text-primary transition-colors cursor-pointer ml-2 font-medium"
-                >
-                  Hồ sơ cá nhân
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="text-xs text-on-surface-variant hover:text-red-600 transition-colors cursor-pointer ml-1 underline font-medium border-l border-outline-variant/30 pl-3"
-                >
-                  Đăng xuất
-                </button>
-              </div>
-            ) : (
-              <>
-                <button
-                  onClick={() => setShowAuthModal('login')}
-                  className="px-5 py-2.5 text-xs font-black text-primary hover:bg-primary-container/20 rounded-full transition-all cursor-pointer"
-                >
-                  Đăng nhập
-                </button>
-                <button
-                  onClick={() => setShowAuthModal('register')}
-                  className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-black rounded-full shadow-md active:scale-95 transition-all cursor-pointer"
-                >
-                  Đăng ký
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
-
+    <PatientLayout>
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-background pt-12 pb-24 border-b border-outline-variant/10">
         <div className="max-w-7xl mx-auto px-6 md:px-12 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -432,20 +103,20 @@ export default function PatientHomePage() {
             </p>
 
             <div className="flex flex-wrap gap-4 pt-2">
-              <button
-                onClick={scrollToFinder}
-                className="px-8 py-4 bg-primary hover:bg-primary-hover text-white font-black rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2 active:scale-95 cursor-pointer border-none text-xs uppercase tracking-wider"
+              <Link
+                href="/doctors"
+                className="px-8 py-4 bg-primary hover:bg-primary-hover text-white font-black rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2 active:scale-95 text-xs uppercase tracking-wider"
               >
                 <span>Đặt lịch khám ngay</span>
                 <ArrowRight className="w-4 h-4" />
-              </button>
+              </Link>
 
-              <button
-                onClick={() => document.getElementById('bac-si-kiem-tra')?.scrollIntoView({ behavior: 'smooth' })}
-                className="px-8 py-4 border-2 border-primary text-primary hover:bg-primary/5 font-black rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer"
+              <Link
+                href="/specialties"
+                className="px-8 py-4 border-2 border-primary text-primary hover:bg-primary/5 font-black rounded-full transition-all text-xs uppercase tracking-wider"
               >
                 Tìm bác sĩ chuyên khoa
-              </button>
+              </Link>
             </div>
           </div>
 
@@ -461,7 +132,7 @@ export default function PatientHomePage() {
               />
             </div>
 
-            <div className="absolute bottom-6 -left-2 sm:-left-6 bg-white p-4 rounded-2xl clinical-shadow border border-outline-variant/30 flex items-center gap-3.5 max-w-xs hover:shadow-lg transition-all duration-300">
+            <div className="absolute bottom-6 -left-2 sm:-left-6 bg-white p-4 rounded-2xl clinical-shadow border border-outline-variant/30 flex items-center gap-3.5 max-w-xs hover:shadow-lg transition-all">
               <div className="w-11 h-11 bg-[#366b00]/10 text-[#366b00] rounded-full flex items-center justify-center shrink-0">
                 <ShieldCheck className="w-6 h-6" />
               </div>
@@ -474,10 +145,10 @@ export default function PatientHomePage() {
         </div>
       </section>
 
-      {/* Quick Finder Section */}
-      <section ref={finderRef} id="dat-lich-tim-kiem" className="relative z-20 -mt-10 px-6 max-w-7xl mx-auto w-full">
+      {/* Quick Finder */}
+      <section className="relative z-20 -mt-10 px-6 max-w-7xl mx-auto w-full">
         <div className="bg-white rounded-3xl clinical-shadow-lg p-6 md:p-8 border border-outline-variant/25">
-          <h3 className="text-xs uppercase font-extrabold text-primary tracking-widest mb-4 flex items-center gap-1.5 justify-center md:justify-start">
+          <h3 className="text-xs uppercase font-extrabold text-primary tracking-widest mb-4 flex items-center gap-1.5">
             <Activity className="w-4 h-4 text-primary shrink-0" /> Tìm kiếm thông minh bằng bộ lọc
           </h3>
 
@@ -490,8 +161,9 @@ export default function PatientHomePage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder="Nhập tên bác sĩ hoặc chuyên khoa..."
-                  className="w-full pl-11 pr-4 py-3 bg-surface-container-low border border-outline-variant/20 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-on-surface"
+                  className="w-full pl-11 pr-4 py-3 bg-surface-container-low border border-outline-variant/20 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 />
               </div>
             </div>
@@ -503,12 +175,12 @@ export default function PatientHomePage() {
                 <select
                   value={selectedLocation}
                   onChange={(e) => setSelectedLocation(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-surface-container-low border border-outline-variant/20 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-on-surface appearance-none cursor-pointer"
+                  className="w-full pl-11 pr-4 py-3 bg-surface-container-low border border-outline-variant/20 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer"
                 >
-                  <option value="Tất cả địa điểm">Tất cả địa điểm</option>
-                  <option value="Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                  <option value="Hà Nội">Hà Nội</option>
-                  <option value="Đà Nẵng">Đà Nẵng</option>
+                  <option>Tất cả địa điểm</option>
+                  <option>TP. Hồ Chí Minh</option>
+                  <option>Hà Nội</option>
+                  <option>Đà Nẵng</option>
                 </select>
               </div>
             </div>
@@ -522,17 +194,14 @@ export default function PatientHomePage() {
                   min={new Date().toISOString().split('T')[0]}
                   value={searchDate}
                   onChange={(e) => setSearchDate(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-surface-container-low border border-outline-variant/20 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-on-surface cursor-pointer"
+                  className="w-full pl-11 pr-4 py-3 bg-surface-container-low border border-outline-variant/20 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
                 />
               </div>
             </div>
 
             <div>
               <button
-                onClick={() => {
-                  addNotification('info', `Đang hiển thị ${filteredDoctors.length} bác sĩ phù hợp.`)
-                  document.getElementById('bac-si-kiem-tra')?.scrollIntoView({ behavior: 'smooth' })
-                }}
+                onClick={handleSearch}
                 className="w-full py-3.5 bg-primary hover:bg-primary-hover text-white text-xs font-black rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer border-none uppercase tracking-wider active:scale-95"
               >
                 <Search className="w-4 h-4" />
@@ -540,48 +209,11 @@ export default function PatientHomePage() {
               </button>
             </div>
           </div>
-
-          {/* Active filters */}
-          {(selectedSpecialty || searchQuery || selectedLocation !== 'Tất cả địa điểm' || searchDate) && (
-            <div className="mt-4 pt-4 border-t border-outline-variant/15 flex flex-wrap gap-2 items-center">
-              <span className="text-xs text-on-surface-variant mr-1 font-bold">Bộ lọc đang bật:</span>
-              {selectedSpecialty && (
-                <span className="text-[10px] font-bold bg-primary/10 text-primary px-2.5 py-1 rounded-full flex items-center gap-1">
-                  Chuyên khoa: {specialtiesList.find((s) => s.id === selectedSpecialty)?.name}
-                  <button onClick={() => setSelectedSpecialty(null)} className="text-primary hover:text-red-600 font-extrabold ml-1">×</button>
-                </span>
-              )}
-              {searchQuery && (
-                <span className="text-[10px] font-bold bg-primary/10 text-primary px-2.5 py-1 rounded-full flex items-center gap-1">
-                  Từ khóa: "{searchQuery}"
-                  <button onClick={() => setSearchQuery('')} className="text-primary hover:text-red-600 font-extrabold ml-1">×</button>
-                </span>
-              )}
-              {selectedLocation !== 'Tất cả địa điểm' && (
-                <span className="text-[10px] font-bold bg-primary/10 text-primary px-2.5 py-1 rounded-full flex items-center gap-1">
-                  Khu vực: {selectedLocation}
-                  <button onClick={() => setSelectedLocation('Tất cả địa điểm')} className="text-primary hover:text-red-600 font-extrabold ml-1">×</button>
-                </span>
-              )}
-              {searchDate && (
-                <span className="text-[10px] font-bold bg-primary/10 text-primary px-2.5 py-1 rounded-full flex items-center gap-1">
-                  Ngày: {searchDate.split('-').reverse().join('/')}
-                  <button onClick={() => setSearchDate('')} className="text-primary hover:text-red-600 font-extrabold ml-1">×</button>
-                </span>
-              )}
-              <button
-                onClick={() => { setSelectedSpecialty(null); setSearchQuery(''); setSelectedLocation('Tất cả địa điểm'); setSearchDate('') }}
-                className="text-[10px] text-red-600 hover:underline font-extrabold border-none bg-transparent cursor-pointer ml-1"
-              >
-                Xóa tất cả
-              </button>
-            </div>
-          )}
         </div>
       </section>
 
-      {/* Specialties Section */}
-      <section id="chuyen-khoa" className="py-20 bg-surface-container-lowest">
+      {/* Specialties Preview */}
+      <section className="py-20 bg-surface-container-lowest">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-4">
             <div>
@@ -589,14 +221,12 @@ export default function PatientHomePage() {
               <h2 className="text-3xl font-black text-on-surface mt-1">Chuyên khoa phổ biến</h2>
               <p className="text-sm text-on-surface-variant mt-2">Duyệt qua các chuyên khoa để đặt lịch với đúng bác sĩ chuyên trách</p>
             </div>
-            {selectedSpecialty && (
-              <button
-                onClick={() => setSelectedSpecialty(null)}
-                className="text-xs font-bold text-primary hover:underline border border-primary/20 px-4 py-2 rounded-full cursor-pointer bg-white"
-              >
-                Hiển thị tất cả bác sĩ
-              </button>
-            )}
+            <Link
+              href="/specialties"
+              className="flex items-center gap-1.5 text-xs font-bold text-primary hover:underline border border-primary/20 px-4 py-2 rounded-full bg-white whitespace-nowrap"
+            >
+              Xem tất cả chuyên khoa <ChevronRight className="w-4 h-4" />
+            </Link>
           </div>
 
           {loadingSpecialties ? (
@@ -605,45 +235,63 @@ export default function PatientHomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-              {specialtiesList.map((spec) => (
-                <SpecialtyCard
-                  key={spec.id}
-                  specialty={spec}
-                  isSelected={selectedSpecialty === spec.id}
-                  onSelect={(id) => {
-                    setSelectedSpecialty(id)
-                    if (id) addNotification('info', `Đang hiển thị chuyên khoa: ${spec.name}`)
-                  }}
-                />
-              ))}
+              {previewSpecialties.map((spec, i) => {
+                const IconComponent = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[spec.iconName]
+                return (
+                  <motion.div
+                    key={spec.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.07 }}
+                    onClick={() => router.push(`/doctors?specialty=${spec.id}`)}
+                    className="group p-6 rounded-2xl clinical-shadow border border-outline-variant/10 bg-white hover:border-primary/50 transition-all text-center cursor-pointer flex flex-col items-center justify-center hover:shadow-md"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-primary/5 text-primary group-hover:bg-primary group-hover:text-white flex items-center justify-center mb-4 transition-all">
+                      {IconComponent ? <IconComponent className="w-7 h-7" /> : null}
+                    </div>
+                    <h3 className="font-bold text-sm text-on-surface">{spec.name}</h3>
+                    <p className="text-xs mt-0.5 text-on-surface-variant">
+                      {spec.count > 0 ? `${spec.count} Bác sĩ` : 'Chuyên khoa'}
+                    </p>
+                  </motion.div>
+                )
+              })}
             </div>
           )}
         </div>
       </section>
 
-      {/* Doctors Section */}
-      <section id="bac-si-kiem-tra" className="py-20 bg-surface-container-low clip-diagonal">
-        <div className="max-w-7xl mx-auto px-6 md:px-12 py-8">
-          <div className="mb-12 text-center max-w-xl mx-auto space-y-2">
-            <span className="text-xs uppercase font-extrabold text-primary tracking-widest">Đội ngũ chuyên gia</span>
-            <h2 className="text-3xl font-black text-on-surface">Danh sách bác sĩ nổi bật</h2>
-            <p className="text-sm text-on-surface-variant">Lựa chọn đặt lịch tư vấn với Tiến sĩ, Thạc sĩ ưu tú.</p>
+      {/* Doctors Preview */}
+      <section className="py-20 bg-surface-container-low">
+        <div className="max-w-7xl mx-auto px-6 md:px-12">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-4">
+            <div>
+              <span className="text-xs uppercase font-extrabold text-primary tracking-widest">Đội ngũ chuyên gia</span>
+              <h2 className="text-3xl font-black text-on-surface mt-1">Bác sĩ nổi bật</h2>
+              <p className="text-sm text-on-surface-variant mt-2">Lựa chọn đặt lịch tư vấn với Tiến sĩ, Thạc sĩ ưu tú.</p>
+            </div>
+            <Link
+              href="/doctors"
+              className="flex items-center gap-1.5 text-xs font-bold text-primary hover:underline border border-primary/20 px-4 py-2 rounded-full bg-white whitespace-nowrap"
+            >
+              Xem tất cả bác sĩ <ChevronRight className="w-4 h-4" />
+            </Link>
           </div>
 
           {loadingDoctors ? (
             <div className="flex justify-center py-16">
               <Loader2 className="w-10 h-10 animate-spin text-primary" />
             </div>
-          ) : filteredDoctors.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredDoctors.map((doc) => (
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {previewDoctors.map((doc) => (
                 <DoctorCard
                   key={doc.id}
                   doctor={doc}
                   onBook={(doctor) => {
                     if (!isAuthenticated) {
-                      addNotification('info', 'Vui lòng đăng nhập để đặt lịch khám.')
-                      setShowAuthModal('login')
+                      setShowLoginHint(true)
+                      setTimeout(() => setShowLoginHint(false), 3000)
                       return
                     }
                     setActiveDoctor(doctor)
@@ -651,28 +299,23 @@ export default function PatientHomePage() {
                 />
               ))}
             </div>
-          ) : (
-            <div className="bg-white rounded-3xl p-12 text-center max-w-md mx-auto border border-outline-variant/20 shadow-sm space-y-4">
-              <AlertCircle className="w-12 h-12 text-primary mx-auto opacity-70" />
-              <div className="space-y-1">
-                <h4 className="font-extrabold text-on-surface text-base">Không tìm thấy bác sĩ phù hợp</h4>
-                <p className="text-xs text-on-surface-variant leading-relaxed">
-                  {doctorsList.length === 0 ? 'Không thể kết nối tới server. Vui lòng kiểm tra backend đang chạy.' : 'Bộ lọc của bạn không khớp với bác sĩ nào.'}
-                </p>
-              </div>
-              <button
-                onClick={() => { setSelectedSpecialty(null); setSearchQuery(''); setSelectedLocation('Tất cả địa điểm'); setSearchDate('') }}
-                className="px-6 py-2.5 bg-primary text-white text-xs font-extrabold rounded-full cursor-pointer hover:bg-primary-hover border-none active:scale-95 transition-all"
+          )}
+
+          {!loadingDoctors && doctorsList.length > 3 && (
+            <div className="mt-10 text-center">
+              <Link
+                href="/doctors"
+                className="inline-flex items-center gap-2 px-8 py-3 border-2 border-primary text-primary font-bold rounded-full hover:bg-primary/5 transition-all text-sm"
               >
-                Xóa bộ lọc tìm lại
-              </button>
+                Xem thêm {doctorsList.length - 3} bác sĩ khác <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           )}
         </div>
       </section>
 
       {/* How it works */}
-      <section id="quy-trinh" className="py-20 bg-background">
+      <section className="py-20 bg-background">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <div className="text-center max-w-xl mx-auto space-y-3 mb-16">
             <span className="text-xs uppercase font-black text-primary tracking-widest">Sơ đồ hướng dẫn</span>
@@ -686,14 +329,20 @@ export default function PatientHomePage() {
               { num: '02', title: 'Chọn khung giờ rảnh', desc: 'Hệ thống gợi ý các ngày & thời điểm trống khớp lịch bác sĩ.' },
               { num: '03', title: 'Xác nhận thanh toán', desc: 'Thanh toán bảo mật qua VNPay, MoMo hoặc chuyển khoản.' },
               { num: '04', title: 'Nhận mã tiếp đón (QR)', desc: 'Nhận mã QR điện tử tích hợp nhắc lịch tự động và ưu tiên xếp chỗ.' },
-            ].map((step) => (
-              <div key={step.num} className="bg-white p-6 rounded-2xl clinical-shadow border border-outline-variant/10 text-center hover:shadow-md transition-all">
+            ].map((step, i) => (
+              <motion.div
+                key={step.num}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-white p-6 rounded-2xl clinical-shadow border border-outline-variant/10 text-center hover:shadow-md transition-all"
+              >
                 <div className="w-14 h-14 bg-primary-container text-primary rounded-xl flex items-center justify-center mx-auto mb-5 font-bold text-lg">
                   {step.num}
                 </div>
                 <h4 className="font-bold text-on-surface mb-2">{step.title}</h4>
                 <p className="text-xs text-on-surface-variant leading-relaxed">{step.desc}</p>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -707,7 +356,7 @@ export default function PatientHomePage() {
               {[
                 { icon: Activity, title: 'Cập Nhật Thời Gian Thực', desc: 'Dữ liệu giờ trực của bác sĩ khớp thực tế, loại bỏ nguy cơ trùng lịch.' },
                 { icon: CalendarDays, title: 'Tích Hợp Nhiều Ví Điện Tử', desc: 'MoMo, VNPay, thẻ nội địa và quốc tế bảo mật hàng đầu.', extraClass: 'lg:translate-y-4' },
-                { icon: UserCheck, title: 'Quản Lý Hồ Sơ Điện Tử', desc: 'Lưu lịch sử khám, đơn thuốc và hóa đơn trực tuyến trên nền tảng di động.' },
+                { icon: UserCheck, title: 'Quản Lý Hồ Sơ Điện Tử', desc: 'Lưu lịch sử khám, đơn thuốc và hóa đơn trực tuyến.' },
                 { icon: ShieldCheck, title: 'Telemedicine Từ Xa', desc: 'Kết nối video độ nét cao để xin tư vấn khẩn cấp từ Tiến sĩ y khoa.', extraClass: 'lg:translate-y-4' },
               ].map((feature) => (
                 <div key={feature.title} className={`bg-white p-6 rounded-2xl clinical-shadow border border-outline-variant/10 ${feature.extraClass || ''}`}>
@@ -747,194 +396,32 @@ export default function PatientHomePage() {
         </div>
       </section>
 
-      {/* Appointments Section */}
-      <section ref={historyRef} id="lich-kham" className="py-20 bg-white">
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="text-center space-y-2 mb-12">
-            <span className="text-xs uppercase font-black text-primary tracking-widest">Tra cứu hồ sơ</span>
-            <h2 className="text-3xl font-black text-on-surface">Lịch khám cá nhân của bạn</h2>
-            <p className="text-sm text-on-surface-variant">Lịch sử và danh sách cuộc hẹn khám bệnh đã đăng ký.</p>
-          </div>
+      {/* Login hint */}
+      <AnimatePresence>
+        {showLoginHint && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-on-surface text-white px-6 py-3 rounded-full text-xs font-bold shadow-xl z-50"
+          >
+            Vui lòng đăng nhập để đặt lịch khám.
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          {!isAuthenticated ? (
-            <div className="bg-white rounded-2xl p-8 text-center border border-outline-variant/20 shadow-xs">
-              <p className="text-on-surface-variant font-medium text-sm">Vui lòng đăng nhập để xem lịch khám của bạn.</p>
-              <button
-                onClick={() => setShowAuthModal('login')}
-                className="mt-4 px-6 py-2.5 bg-primary text-white text-xs font-extrabold rounded-full cursor-pointer hover:bg-primary-hover border-none active:scale-95 transition-all"
-              >
-                Đăng nhập ngay
-              </button>
-            </div>
-          ) : loadingAppointments ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <AppointmentList appointments={appointments} onCancel={handleCancelAppointment} />
-          )}
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-surface-container-high clip-diagonal-footer pt-32 pb-16">
-        <div className="max-w-7xl mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-3 gap-12 text-left">
-          <div className="space-y-6">
-            <div className="flex items-center gap-2">
-              <span className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white font-black text-sm shadow">M</span>
-              <span className="text-lg font-black text-primary tracking-tight">Medi<span className="text-secondary">Book</span></span>
-            </div>
-            <p className="text-xs text-on-surface-variant leading-relaxed max-w-sm">
-              © 2026 MediBook. Nền tảng đặt lịch khám bệnh trực tuyến và giải pháp quản lý y tế thông minh cho hàng triệu gia đình Việt Nam.
-            </p>
-            <div className="flex gap-4">
-              {[Globe, Mail, Phone].map((Icon, i) => (
-                <a key={i} href="#" className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all">
-                  <Icon className="w-4 h-4" />
-                </a>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h4 className="font-extrabold text-on-surface text-sm uppercase tracking-wider">Liên kết hữu ích</h4>
-            <div className="grid grid-cols-1 gap-3">
-              {['Giới thiệu dịch vụ', 'Điều khoản sử dụng', 'Chính sách bảo mật y tế', 'Câu hỏi thường gặp'].map((link) => (
-                <a key={link} href="#" className="text-xs text-on-surface-variant hover:text-primary underline">{link}</a>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h4 className="font-extrabold text-on-surface text-sm uppercase tracking-wider">Thống kê hệ thống</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white/60 p-4 rounded-xl border border-outline-variant/15">
-                <p className="text-lg font-black text-primary">500k+</p>
-                <p className="text-[10px] text-on-surface-variant mt-0.5">Bệnh nhân</p>
-              </div>
-              <div className="bg-white/60 p-4 rounded-xl border border-outline-variant/15">
-                <p className="text-lg font-black text-primary">1.2k+</p>
-                <p className="text-[10px] text-on-surface-variant mt-0.5">Bác sĩ</p>
-              </div>
-              <div className="bg-white/60 p-4 rounded-xl border border-outline-variant/15 col-span-2">
-                <p className="text-lg font-black text-primary">1,000,000+</p>
-                <p className="text-[10px] text-on-surface-variant mt-0.5">Lịch khám thành công</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-6 md:px-12 mt-12 pt-8 border-t border-outline-variant/10 text-center text-on-surface-variant/80 text-[10px]">
-          <p>Cơ quan chủ quản: Công ty Cổ phần Công nghệ MediBook Việt Nam • MST: 0101234567 • Giấy phép số 89/GP-BYT</p>
-        </div>
-      </footer>
-
-      {/* Chat Widget */}
-      <ChatWidget />
-
-      {/* Booking Modal */}
+      {/* Booking modal */}
       <AnimatePresence>
         {activeDoctor && (
           <BookingModal
             doctor={activeDoctor}
             onClose={() => setActiveDoctor(null)}
-            onBookingSuccess={handleBookingConfirm}
+            onBookingSuccess={() => setActiveDoctor(null)}
             isLoggedIn={isAuthenticated}
-            onRequestLogin={() => setShowAuthModal('login')}
+            onRequestLogin={() => {}}
           />
         )}
       </AnimatePresence>
-
-      {/* Auth Modal */}
-      <AnimatePresence>
-        {showAuthModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-sm bg-white rounded-3xl p-8 shadow-2xl relative border border-outline-variant/20"
-            >
-              <button
-                onClick={() => setShowAuthModal(null)}
-                className="absolute top-4 right-4 p-1.5 text-on-surface-variant hover:text-primary rounded-full transition-all"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <h3 className="text-xl font-black text-on-surface text-center mb-6">
-                {showAuthModal === 'login' ? 'Đăng nhập MediBook' : 'Đăng ký tài khoản mới'}
-              </h3>
-
-              <form onSubmit={handleAuthSubmit} className="space-y-4">
-                {showAuthModal === 'register' && (
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-on-surface-variant">Tên hiển thị:</label>
-                    <input
-                      type="text"
-                      placeholder="Nhập tên của bạn..."
-                      value={authName}
-                      onChange={(e) => setAuthName(e.target.value)}
-                      className="w-full py-2.5 px-4 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
-                )}
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-on-surface-variant">Địa chỉ Email:</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="example@medibook.vn"
-                    value={authEmail}
-                    onChange={(e) => setAuthEmail(e.target.value)}
-                    className="w-full py-2.5 px-4 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-on-surface-variant">Mật khẩu bảo mật:</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                    className="w-full py-2.5 px-4 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={authLoading}
-                  className="w-full py-3 bg-primary text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md hover:bg-primary-hover active:scale-95 transition-all border-none mt-2 cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
-                >
-                  {authLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {authLoading ? 'Đang xử lý...' : showAuthModal === 'login' ? 'Xác nhận Đăng nhập' : 'Hoàn tất Đăng ký'}
-                </button>
-              </form>
-
-              <div className="text-center mt-4">
-                {showAuthModal === 'login' ? (
-                  <p className="text-xs text-on-surface-variant">
-                    Chưa có tài khoản?{' '}
-                    <button onClick={() => setShowAuthModal('register')} className="text-primary font-bold hover:underline cursor-pointer">
-                      Đăng ký ngay
-                    </button>
-                  </p>
-                ) : (
-                  <p className="text-xs text-on-surface-variant">
-                    Đã có tài khoản?{' '}
-                    <button onClick={() => setShowAuthModal('login')} className="text-primary font-bold hover:underline cursor-pointer">
-                      Đăng nhập trực tiếp
-                    </button>
-                  </p>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
+    </PatientLayout>
   )
 }

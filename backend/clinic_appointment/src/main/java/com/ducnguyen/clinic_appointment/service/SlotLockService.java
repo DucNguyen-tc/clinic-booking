@@ -9,6 +9,7 @@ import java.util.List;
 
 public interface SlotLockService {
     SlotLockResponse lockSlot(SlotLockRequest request, String patientId);
+    void unlockSlot(Integer slotLockId, String patientId);
     List<LocalTime> getAvailableSlots(String doctorId, LocalDate date);
     void cleanExpiredLocks();
 }

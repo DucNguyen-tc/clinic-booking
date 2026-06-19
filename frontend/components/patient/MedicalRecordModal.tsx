@@ -12,10 +12,10 @@ interface MedicalRecordModalProps {
 }
 
 interface PrescriptionItem {
-  name: string
+  medicationName: string
   dosage: string
   quantity: string
-  usage: string
+  instructions: string
 }
 
 export function MedicalRecordModal({ appointmentId, onClose }: MedicalRecordModalProps) {
@@ -110,10 +110,10 @@ export function MedicalRecordModal({ appointmentId, onClose }: MedicalRecordModa
                       <tbody className="divide-y divide-outline-variant/20">
                         {parsePrescriptions(record.prescription).map((item, index) => (
                           <tr key={index} className="hover:bg-surface-container-lowest/50">
-                            <td className="p-3 font-semibold text-on-surface">{item.name}</td>
+                            <td className="p-3 font-semibold text-on-surface">{item.medicationName}</td>
                             <td className="p-3 text-on-surface-variant">{item.dosage}</td>
                             <td className="p-3 text-on-surface-variant">{item.quantity}</td>
-                            <td className="p-3 text-on-surface-variant">{item.usage}</td>
+                            <td className="p-3 text-on-surface-variant">{item.instructions}</td>
                           </tr>
                         ))}
                       </tbody>
