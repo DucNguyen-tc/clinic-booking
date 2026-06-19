@@ -14,6 +14,8 @@ import com.ducnguyen.clinic_appointment.service.AppointmentService;
 import com.ducnguyen.clinic_appointment.state.AppointmentState;
 import com.ducnguyen.clinic_appointment.state.AppointmentStateFactory;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AppointmentServiceImpl implements AppointmentService {
@@ -110,6 +113,25 @@ public class AppointmentServiceImpl implements AppointmentService {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
         return appointmentMapper.toResponse(appointment);
+    }
+
+    /**
+     * Tự động hủy các appointment PENDING_PAYMENT quá 15 phút
+     * để trả lại slot cho người dùng khác. Chạy mỗi phút.
+     */
+    @Scheduled(fixedRate = 60000)
+    @Transactional
+    public void cancelExpiredPendingPayments() {
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(15);
+        List<Appointment> stale = appointmentRepository
+                .findByStatusAndCreatedAtBefore(AppointmentStatus.PENDING_PAYMENT, cutoff);
+        for (Appointment apt : stale) {
+            apt.setStatus(AppointmentStatus.CANCELLED);
+            appointmentRepository.save(apt);
+        }
+        if (!stale.isEmpty()) {
+            log.info("Auto-cancelled {} PENDING_PAYMENT appointments older than 15 minutes", stale.size());
+        }
     }
 
     @Override

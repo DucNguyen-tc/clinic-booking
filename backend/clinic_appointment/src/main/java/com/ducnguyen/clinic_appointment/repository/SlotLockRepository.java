@@ -15,4 +15,5 @@ public interface SlotLockRepository extends JpaRepository<SlotLock, Integer> {
     List<SlotLock> findByDoctorIdAndLockDateAndExpiresAtAfter(String doctorId, LocalDate lockDate, LocalDateTime dateTime);
     Optional<SlotLock> findByDoctorIdAndLockDateAndSlotTimeAndExpiresAtAfter(String doctorId, LocalDate lockDate, LocalTime slotTime, LocalDateTime dateTime);
     List<SlotLock> findByExpiresAtBefore(LocalDateTime dateTime);
+    List<SlotLock> findByPatientIdAndExpiresAtAfter(String patientId, LocalDateTime dateTime);
 }

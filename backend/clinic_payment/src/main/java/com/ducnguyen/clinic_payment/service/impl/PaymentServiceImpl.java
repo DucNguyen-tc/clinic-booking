@@ -42,6 +42,12 @@ public class PaymentServiceImpl implements PaymentService {
                 .paymentMethod(Payment.PaymentMethod.valueOf(request.getPaymentMethod().toUpperCase()))
                 .status(Payment.PaymentStatus.PENDING)
                 .paymentUrl(paymentUrl)
+                .patientEmail(request.getPatientEmail())
+                .patientName(request.getPatientName())
+                .doctorName(request.getDoctorName())
+                .specialty(request.getSpecialty())
+                .appointmentDate(request.getAppointmentDate())
+                .slotTime(request.getSlotTime())
                 .build();
 
         Payment saved = paymentRepository.save(payment);
@@ -78,19 +84,28 @@ public class PaymentServiceImpl implements PaymentService {
 
         if (success) {
             log.info("Thanh toán thành công! appointmentId={}, txn={}", appointmentId, transactionNo);
-            try {
-                NotificationClient.AppointmentConfirmRequest emailReq = new NotificationClient.AppointmentConfirmRequest();
-                emailReq.setRecipientEmail("houyen080@gmail.com");
-                emailReq.setPatientName("Bệnh nhân Test");
-                emailReq.setDoctorName("Bác sĩ Test");
-                emailReq.setSpecialty("Khám Tổng Quát");
-                emailReq.setAppointmentDate(LocalDate.now().plusDays(1));
-                emailReq.setAppointmentTime(LocalTime.of(9, 0));
-                emailReq.setAppointmentId(appointmentId);
-                notificationClient.sendAppointmentConfirmEmail(emailReq);
-                log.info("Đã gửi email xác nhận thanh toán cho appointmentId={}", appointmentId);
-            } catch (Exception e) {
-                log.error("Lỗi gửi email: {}", e.getMessage());
+            // Gửi email xác nhận đặt lịch nếu có thông tin bệnh nhân
+            if (payment.getPatientEmail() != null && !payment.getPatientEmail().isBlank()) {
+                try {
+                    NotificationClient.AppointmentConfirmRequest emailReq = new NotificationClient.AppointmentConfirmRequest();
+                    emailReq.setRecipientEmail(payment.getPatientEmail());
+                    emailReq.setPatientName(payment.getPatientName() != null ? payment.getPatientName() : "Bệnh nhân");
+                    emailReq.setDoctorName(payment.getDoctorName() != null ? payment.getDoctorName() : "Bác sĩ");
+                    emailReq.setSpecialty(payment.getSpecialty() != null ? payment.getSpecialty() : "");
+                    emailReq.setAppointmentDate(
+                            payment.getAppointmentDate() != null ? payment.getAppointmentDate() : LocalDate.now().plusDays(1)
+                    );
+                    emailReq.setAppointmentTime(
+                            payment.getSlotTime() != null ? payment.getSlotTime() : LocalTime.of(9, 0)
+                    );
+                    emailReq.setAppointmentId(appointmentId);
+                    notificationClient.sendAppointmentConfirmEmail(emailReq);
+                    log.info("Đã gửi email xác nhận cho {} - appointmentId={}", payment.getPatientEmail(), appointmentId);
+                } catch (Exception e) {
+                    log.error("Lỗi gửi email: {}", e.getMessage());
+                }
+            } else {
+                log.warn("Không có patientEmail để gửi mail xác nhận cho appointmentId={}", appointmentId);
             }
         } else {
             log.warn("Thanh toán thất bại! appointmentId={}", appointmentId);

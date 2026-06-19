@@ -117,7 +117,7 @@ export default function AppointmentList({ appointments, onCancel }: AppointmentL
                   Đã hoàn thành khám
                 </span>
                 <button
-                  onClick={() => setSelectedRecordId(apt.backendId)}
+                  onClick={() => setSelectedRecordId(apt.backendId ?? null)}
                   className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 duration-100 cursor-pointer"
                 >
                   <Stethoscope className="w-4 h-4" />

@@ -3,7 +3,9 @@ package com.ducnguyen.clinic_payment.dto;
 import lombok.Builder;
 import lombok.Data;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 public class PaymentDto {
 
@@ -13,6 +15,12 @@ public class PaymentDto {
         private BigDecimal amount;
         private String paymentMethod;
         private String orderInfo;
+        private String patientEmail;
+        private String patientName;
+        private String doctorName;
+        private String specialty;
+        private LocalDate appointmentDate;
+        private LocalTime slotTime;
     }
 
     @Data

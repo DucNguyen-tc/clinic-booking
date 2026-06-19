@@ -3,7 +3,9 @@ package com.ducnguyen.clinic_payment.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "payments")
@@ -37,6 +39,24 @@ public class Payment {
 
     @Column(name = "payment_url", columnDefinition = "TEXT")
     private String paymentUrl;
+
+    @Column(name = "patient_email")
+    private String patientEmail;
+
+    @Column(name = "patient_name")
+    private String patientName;
+
+    @Column(name = "doctor_name")
+    private String doctorName;
+
+    @Column(name = "specialty")
+    private String specialty;
+
+    @Column(name = "appointment_date")
+    private LocalDate appointmentDate;
+
+    @Column(name = "slot_time")
+    private LocalTime slotTime;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

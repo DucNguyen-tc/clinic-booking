@@ -40,7 +40,9 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             "/api/auth/login",
             "/api/auth/register",
             "/api/auth/refresh",      // Fix: đổi từ /refresh-token → /refresh cho khớp AuthController
-            "/api/auth/forgot-password"
+            "/api/auth/forgot-password",
+            "/api/payments/callback/",  // VNPay/MoMo IPN webhook — không có JWT
+            "/api/payments/vnpay-return" // VNPay browser return — không có JWT
     );
 
     @Override
