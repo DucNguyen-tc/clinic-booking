@@ -77,13 +77,4 @@ public class MedicalRecordController {
                 medicalRecordService.getRecordByAppointmentId(appointmentId)
         ));
     }
-
-    @GetMapping("/patient/{patientId}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
-    @Operation(summary = "Lấy lịch sử bệnh án theo patientId cho bác sĩ")
-    public ResponseEntity<ApiResponse<List<MedicalRecordResponse>>> getRecordsByPatientId(
-            @PathVariable String patientId
-    ) {
-        return ResponseEntity.ok(ApiResponse.ok(medicalRecordService.getMyRecords(patientId)));
-    }
 }

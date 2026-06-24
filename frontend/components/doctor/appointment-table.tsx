@@ -160,22 +160,14 @@ function AppointmentRow({
             )}
           </button>
         )}
-        {isConfirmed &&
-          (isFuture ? (
-            <button
-              disabled
-              className="px-4 py-2 bg-surface-container-highest text-on-surface-variant/40 rounded-full text-xs font-semibold cursor-not-allowed border border-outline-variant/50"
-            >
-              Chưa tới thời gian khám
-            </button>
-          ) : (
-            <Link
-              href={`/doctor/appointments/${appt.id}`}
-              className="px-4 py-2 bg-primary text-on-primary rounded-full text-xs font-semibold transition-all hover:bg-primary/90 shadow-sm"
-            >
-              Vào khám
-            </Link>
-          ))}
+        {isConfirmed && (
+          <Link
+            href={`/doctor/appointments/${appt.id}`}
+            className="px-4 py-2 bg-primary text-on-primary rounded-full text-xs font-semibold transition-all hover:bg-primary/90 shadow-sm"
+          >
+            Vào khám
+          </Link>
+        )}
         {isCompleted && (
           <button className="px-5 py-2 bg-surface-container-highest text-on-surface-variant hover:text-primary rounded-full text-xs font-semibold transition-all">
             Đã hoàn thành

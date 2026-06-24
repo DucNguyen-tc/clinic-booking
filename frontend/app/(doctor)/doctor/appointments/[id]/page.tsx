@@ -28,22 +28,28 @@ export default function AppointmentDetailPage() {
         const apptData = await appointmentService.getAppointmentById(id);
 
         // 2. Fetch patient profile
-        const patientData = await appointmentService.getPatientInfo(apptData.patientId);
+        const patientData = await appointmentService.getPatientInfo(
+          apptData.patientId,
+        );
 
         // 3. Fetch medical history
         let historyData: any[] = [];
         try {
-          historyData = await medicalRecordService.getRecordsByPatientId(apptData.patientId);
+          historyData = await medicalRecordService.getRecordsByPatientId(
+            apptData.patientId,
+          );
         } catch (e) {
           console.error(
             "No medical history found or error fetching history:",
             e,
           );
         }
-
+        console.log(apptData);
         // Map API response to UI type
         const dobDate = patientData.dob ? new Date(patientData.dob) : null;
-        const age = dobDate ? new Date().getFullYear() - dobDate.getFullYear() : 0;
+        const age = dobDate
+          ? new Date().getFullYear() - dobDate.getFullYear()
+          : 0;
 
         const names = patientData.fullName?.trim().split(" ") || [""];
         const initials =
@@ -58,19 +64,29 @@ export default function AppointmentDetailPage() {
             id: patientData.userId,
             name: patientData.fullName,
             age: age,
-            gender: patientData.gender?.toLowerCase() === "male" ? "male" : (patientData.gender?.toLowerCase() === "female" ? "female" : "other"),
+            gender:
+              patientData.gender?.toLowerCase() === "male"
+                ? "male"
+                : patientData.gender?.toLowerCase() === "female"
+                  ? "female"
+                  : "other",
             initials: initials,
           },
           timeRange: apptData.slotTime,
-          sessionType: parseInt(apptData.slotTime?.split(":")?.[0] ?? "8") < 12 ? "morning" : "afternoon",
+          sessionType:
+            parseInt(apptData.slotTime?.split(":")?.[0] ?? "8") < 12
+              ? "morning"
+              : "afternoon",
           status: apptData.status,
           date: apptData.appointmentDate,
-          reason: "Khám định kỳ",
+          reason: apptData.notes || "Không có ghi chú",
         };
 
         const mappedHistory: MedicalHistoryEntry[] = historyData.map(
           (record: any) => ({
-            date: record.createdAt ? new Date(record.createdAt).toLocaleDateString("vi-VN") : "Chưa có ngày",
+            date: record.createdAt
+              ? new Date(record.createdAt).toLocaleDateString("vi-VN")
+              : "Chưa có ngày",
             department: "Phòng khám",
             diagnosis: record.diagnosis || "Chưa có chẩn đoán",
             notes: record.doctorNote || "Không có lời dặn",

@@ -1,4 +1,5 @@
 import { Droplets, Weight, Activity, ChevronRight } from "lucide-react"
+import Link from "next/link"
 import type { Patient, Appointment } from "@/types/appointment"
 import type { MedicalHistoryEntry } from "@/types/medical-record"
 
@@ -110,10 +111,13 @@ export function PatientSummaryCard({ appointment, history = [] }: PatientSummary
           </div>
         )}
 
-        <button className="w-full mt-5 py-2 text-primary font-semibold text-sm hover:bg-surface-container-low rounded-xl transition-colors flex items-center justify-center gap-1">
+        <Link
+          href={`/doctor/patients/${patient.id}`}
+          className="w-full mt-5 py-2 text-primary font-semibold text-sm hover:bg-surface-container-low rounded-xl transition-colors flex items-center justify-center gap-1"
+        >
           Xem toàn bộ lịch sử
           <ChevronRight className="w-4 h-4" />
-        </button>
+        </Link>
       </div>
     </div>
   )

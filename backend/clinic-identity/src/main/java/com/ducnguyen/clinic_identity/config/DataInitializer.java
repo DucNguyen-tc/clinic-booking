@@ -46,25 +46,29 @@ public class DataInitializer implements CommandLineRunner {
         String encodedPassword = passwordEncoder.encode(PASSWORD);
 
         for (SeedUser seed : seeds) {
-            if (!userRepository.existsById(seed.id)) {
-                User user = User.builder()
-                        .id(seed.id)
-                        .email(seed.email)
-                        .passwordHash(encodedPassword)
-                        .role(seed.role)
-                        .isActive(true)
-                        .build();
-                userRepository.save(user);
-                log.info("Seeded user: {} ({})", seed.email, seed.role);
-            } else {
-                // Update password hash để đảm bảo password luôn là "123456"
-                userRepository.findById(seed.id).ifPresent(u -> {
+            userRepository.findByEmail(seed.email).ifPresentOrElse(
+                u -> {
                     u.setPasswordHash(encodedPassword);
-                    u.setRole(seed.role); // Đảm bảo role đúng
+                    u.setRole(seed.role);
                     userRepository.save(u);
-                });
-                log.debug("Updated password for: {}", seed.email);
-            }
+                    log.debug("Updated password for: {}", seed.email);
+                },
+                () -> {
+                    if (!userRepository.existsById(seed.id)) {
+                        User user = User.builder()
+                                .id(seed.id)
+                                .email(seed.email)
+                                .passwordHash(encodedPassword)
+                                .role(seed.role)
+                                .isActive(true)
+                                .build();
+                        userRepository.save(user);
+                        log.info("Seeded user: {} ({})", seed.email, seed.role);
+                    } else {
+                        log.warn("User ID {} already exists but with a different email!", seed.id);
+                    }
+                }
+            );
         }
 
         log.info("DataInitializer: Done. All users have password='{}'", PASSWORD);
